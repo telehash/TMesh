@@ -1,6 +1,6 @@
 all:
-	mmark -xml2 -page tmesh.md > tmesh.xml
-	xml2rfc tmesh.xml
+	mmark -xml2 -page TMesh.md > draft-miller-tmesh-00.xml
+	xml2rfc draft-miller-tmesh-00.xml
 
 install:
 	go get github.com/miekg/mmark
