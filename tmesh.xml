@@ -65,6 +65,27 @@
 <section anchor="basic-operation" title="Basic Operation">
 <t>Overview
 </t>
+<t>
+<list style="symbols">
+<t>trusted peers only, administration/provisioning adds/removes</t>
+<t>each mote has a list of RF neighbors that it learns/discovers/shares, a neighborhood</t>
+<t>share their resource level, local leader is who has the most</t>
+<t>concept of soft and hard <spanx style="verb">knocks</spanx>, for optimal spectrum energy usage vs. highest compatible range</t>
+<t>discoverable mode for provisioning only, beacon's its key with a hard knock</t>
+<t>link is unique to each pair, every link is a unique rotating PHY pattern</t>
+<t>soft knock (lowest power best settings, LoRa) and then hard knock (highest power worst settings, FSK)</t>
+<t>each mote keep X soft knock neighbors and Y hard knock neighbors</t>
+<t>a knock is purely boolean, when one is received it means start listening in that mode</t>
+<t>try to keep soft/hard lists minimum but reliable, quiesce shrinks size of each</t>
+<t>send packet for a mote directly to it, and then fallback to one known neighbor, then to the local leader</t>
+<t>lost mode when all link state is lost, local leaders must help beacon for them to resync</t>
+<t>resource based routing, highest resource gets undelivered packets</t>
+<t>highest leader for the whole mesh is responsible for mapping the full mesh, collecting undelivered’s and re-routing them</t>
+<t>natural pooling around local resources, neighborhoods</t>
+<t>when you know a link's neighbors you can calculate their knock windows and use one instead of waiting for yours</t>
+<t>soft knock is short and LNA/expensive for recipient, hard knock is long and cheaper for recipient</t>
+</list>
+</t>
 </section>
 </section>
 
@@ -75,6 +96,95 @@
 &quot;SHALL&quot;, &quot;SHALL NOT&quot;, &quot;SHOULD&quot;, &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;MAY&quot;,
 and &quot;OPTIONAL&quot; are to be interpreted as described in BCP 14, [RFC 2119]
 and indicate requirement levels for compliant TMesh implementations.
+</t>
+</section>
+
+<section anchor="phy" title="PHY">
+<t>
+<list style="symbols">
+<t>each transceiver hardware defines own best soft knock</t>
+<t>common hard knocks for compatibility and interop</t>
+<t>doesn't need whitening as encrypted packets are DC-free</t>
+<t>doesn't need CRC as packets all have authentication bits</t>
+</list>
+</t>
+</section>
+
+<section anchor="link-windows" title="Link Windows">
+<t>
+<list style="symbols">
+<t>link ids determine window pattern</t>
+<t>step through each bit of the id
+<list style="symbols">
+<t>derive unique soft/hard knock parameters</t>
+<t>derive time until next window</t>
+<t>each pass through the full id is called an <spanx style="verb">epoch</spanx></t>
+</list></t>
+<t>a confirmed knock over any link is a sync, know the current bit the sender is on for all their links</t>
+<t>can use a neighbors window if no soft knock is detected, send hard knock</t>
+<t>sleepy motes calculate the epoch peak density across all their neighbors and only wake then
+<list style="symbols">
+<t>knocks are only tried twice outside of that peak, and once again inside</t>
+</list></t>
+</list>
+</t>
+</section>
+
+<section anchor="knocks" title="Knocks">
+<t>
+<list style="symbols">
+<t>preamble/sync is derived from link id and window bit</t>
+<t>only identifies the window, not the sender</t>
+<t>payload is the sender's link id or a new link request</t>
+<t>immediately knock back w/ the same data as a continue/ready</t>
+<t>if no soft knock back, immediately hard knock the same</t>
+<t>after knock-knock, same preamble and packet payload</t>
+<t>knock to continue any more packets</t>
+<t>sleep after no more</t>
+<t>if busy until next transmit window, always skip it</t>
+<t>never transmit into the next receive window</t>
+<t>requires no application logic/lookups/parsing</t>
+<t>requires no spectral detection</t>
+</list>
+</t>
+</section>
+
+<section anchor="flow" title="Flow">
+<t>
+<list style="numbers">
+<t>mote must be initially paired to another
+<list style="symbols">
+<t>handshakes</t>
+<t>z-index priority set</t>
+<t>link established</t>
+<t>link id created (routing token and z-index byte)</t>
+</list></t>
+<t>existing mote informs mesh of new link
+<list style="symbols">
+<t>sends to mesh leader for overall routing</t>
+<t>if link is a neighbor, updates other neighbors</t>
+</list></t>
+<t>existing mote shares mesh to new mote
+<list style="symbols">
+<t>sends its neighbors</t>
+<t>sends the mesh top leader list</t>
+</list></t>
+<t>new mote attempts to reach neighbors to establish links</t>
+<t>build/maintain neighborhood list of X soft and Y hard knock</t>
+<t>each mote sends its neighborhood to each neighbor after it's changed since the last epoch</t>
+<t>a neighbor is only considered lost after it has not responded to a full epoch</t>
+</list>
+</t>
+</section>
+
+<section anchor="lost" title="Lost">
+<t>
+<list style="symbols">
+<t>after any power reset (loss of link state), or after a full epoch of no responses to any knocks</t>
+<t>begin listening for any hard knocks, detect link id and sync to it then handshake there</t>
+<t>if sleepy, only listen on the lost schedule</t>
+<t>local leaders are required to hard knock per epoch on the lost schedule</t>
+</list>
 </t>
 </section>
 </section>

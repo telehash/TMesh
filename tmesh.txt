@@ -62,18 +62,18 @@ Table of Contents
    1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . . . 3
      1.1.  The Need for Standards  . . . . . . . . . . . . . . . . . . 3
      1.2.  Basic Operation . . . . . . . . . . . . . . . . . . . . . . 3
-   2.  Protocol Definition . . . . . . . . . . . . . . . . . . . . . . 3
-     2.1.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . 3
-   3.  Implementation Notes  . . . . . . . . . . . . . . . . . . . . . 3
-   4.  Security Considerations . . . . . . . . . . . . . . . . . . . . 4
-   5.  References  . . . . . . . . . . . . . . . . . . . . . . . . . . 4
-   Appendix A.  Examples . . . . . . . . . . . . . . . . . . . . . . . 4
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . . . 4
-
-
-
-
-
+   2.  Protocol Definition . . . . . . . . . . . . . . . . . . . . . . 4
+     2.1.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . 4
+     2.2.  PHY . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+     2.3.  Link Windows  . . . . . . . . . . . . . . . . . . . . . . . 5
+     2.4.  Knocks  . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+     2.5.  Flow  . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+     2.6.  Lost  . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+   3.  Implementation Notes  . . . . . . . . . . . . . . . . . . . . . 7
+   4.  Security Considerations . . . . . . . . . . . . . . . . . . . . 7
+   5.  References  . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+   Appendix A.  Examples . . . . . . . . . . . . . . . . . . . . . . . 7
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . . . 7
 
 
 
@@ -142,6 +142,60 @@ Internet-Draft                    tmesh                         May 2015
 
    Overview
 
+   o  trusted peers only, administration/provisioning adds/removes
+
+   o  each mote has a list of RF neighbors that it learns/discovers/
+      shares, a neighborhood
+
+   o  share their resource level, local leader is who has the most
+
+   o  concept of soft and hard "knocks", for optimal spectrum energy
+      usage vs. highest compatible range
+
+   o  discoverable mode for provisioning only, beacon's its key with a
+      hard knock
+
+   o  link is unique to each pair, every link is a unique rotating PHY
+      pattern
+
+   o  soft knock (lowest power best settings, LoRa) and then hard knock
+      (highest power worst settings, FSK)
+
+
+
+
+Miller                  Expires November 17, 2015               [Page 3]
+
+Internet-Draft                    tmesh                         May 2015
+
+
+   o  each mote keep X soft knock neighbors and Y hard knock neighbors
+
+   o  a knock is purely boolean, when one is received it means start
+      listening in that mode
+
+   o  try to keep soft/hard lists minimum but reliable, quiesce shrinks
+      size of each
+
+   o  send packet for a mote directly to it, and then fallback to one
+      known neighbor, then to the local leader
+
+   o  lost mode when all link state is lost, local leaders must help
+      beacon for them to resync
+
+   o  resource based routing, highest resource gets undelivered packets
+
+   o  highest leader for the whole mesh is responsible for mapping the
+      full mesh, collecting undelivered's and re-routing them
+
+   o  natural pooling around local resources, neighborhoods
+
+   o  when you know a link's neighbors you can calculate their knock
+      windows and use one instead of waiting for yours
+
+   o  soft knock is short and LNA/expensive for recipient, hard knock is
+      long and cheaper for recipient
+
 
 2.  Protocol Definition
 
@@ -153,20 +207,139 @@ Internet-Draft                    tmesh                         May 2015
    2119] and indicate requirement levels for compliant TMesh
    implementations.
 
+2.2.  PHY
+
+   o  each transceiver hardware defines own best soft knock
+
+   o  common hard knocks for compatibility and interop
+
+   o  doesn't need whitening as encrypted packets are DC-free
+
+   o  doesn't need CRC as packets all have authentication bits
+
+
+
+
+Miller                  Expires November 17, 2015               [Page 4]
+
+Internet-Draft                    tmesh                         May 2015
+
+
+2.3.  Link Windows
+
+   o  link ids determine window pattern
+
+   o  step through each bit of the id
+
+      *  derive unique soft/hard knock parameters
+
+      *  derive time until next window
+
+      *  each pass through the full id is called an "epoch"
+
+   o  a confirmed knock over any link is a sync, know the current bit
+      the sender is on for all their links
+
+   o  can use a neighbors window if no soft knock is detected, send hard
+      knock
+
+   o  sleepy motes calculate the epoch peak density across all their
+      neighbors and only wake then
+
+      *  knocks are only tried twice outside of that peak, and once
+         again inside
+
+2.4.  Knocks
+
+   o  preamble/sync is derived from link id and window bit
+
+   o  only identifies the window, not the sender
+
+   o  payload is the sender's link id or a new link request
+
+   o  immediately knock back w/ the same data as a continue/ready
+
+   o  if no soft knock back, immediately hard knock the same
+
+   o  after knock-knock, same preamble and packet payload
+
+   o  knock to continue any more packets
+
+   o  sleep after no more
+
+   o  if busy until next transmit window, always skip it
+
+   o  never transmit into the next receive window
+
+   o  requires no application logic/lookups/parsing
+
+
+
+
+Miller                  Expires November 17, 2015               [Page 5]
+
+Internet-Draft                    tmesh                         May 2015
+
+
+   o  requires no spectral detection
+
+2.5.  Flow
+
+   1.  mote must be initially paired to another
+
+       *  handshakes
+
+       *  z-index priority set
+
+       *  link established
+
+       *  link id created (routing token and z-index byte)
+
+   2.  existing mote informs mesh of new link
+
+       *  sends to mesh leader for overall routing
+
+       *  if link is a neighbor, updates other neighbors
+
+   3.  existing mote shares mesh to new mote
+
+       *  sends its neighbors
+
+       *  sends the mesh top leader list
+
+   4.  new mote attempts to reach neighbors to establish links
+
+   5.  build/maintain neighborhood list of X soft and Y hard knock
+
+   6.  each mote sends its neighborhood to each neighbor after it's
+       changed since the last epoch
+
+   7.  a neighbor is only considered lost after it has not responded to
+       a full epoch
+
+2.6.  Lost
+
+   o  after any power reset (loss of link state), or after a full epoch
+      of no responses to any knocks
+
+   o  begin listening for any hard knocks, detect link id and sync to it
+      then handshake there
+
+   o  if sleepy, only listen on the lost schedule
+
+   o  local leaders are required to hard knock per epoch on the lost
+      schedule
+
+
+
+Miller                  Expires November 17, 2015               [Page 6]
+
+Internet-Draft                    tmesh                         May 2015
+
 
 3.  Implementation Notes
 
    notes
-
-
-
-
-
-
-
-Miller                  Expires November 17, 2015               [Page 3]
-
-Internet-Draft                    tmesh                         May 2015
 
 
 4.  Security Considerations
@@ -215,10 +388,5 @@ Author's Address
 
 
 
-
-
-
-
-
-Miller                  Expires November 17, 2015               [Page 4]
+Miller                  Expires November 17, 2015               [Page 7]
 
