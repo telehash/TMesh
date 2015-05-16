@@ -3,11 +3,11 @@
 
 Network Working Group                                          J. Miller
 Internet-Draft                                                  Filament
-Intended status: Informational                              May 15, 2015
-Expires: November 16, 2015
+Intended status: Informational                              May 16, 2015
+Expires: November 17, 2015
 
 
-                               Thing Mesh
+                  TMesh - Thing Mesh PHY/MAC Protocol
                          draft-miller-tmesh-00
 
 Abstract
@@ -29,7 +29,7 @@ Status of this Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on November 16, 2015.
+   This Internet-Draft will expire on November 17, 2015.
 
 Copyright Notice
 
@@ -52,26 +52,23 @@ Copyright Notice
 
 
 
-Miller                  Expires November 16, 2015               [Page 1]
+Miller                  Expires November 17, 2015               [Page 1]
 
 Internet-Draft                    tmesh                         May 2015
 
 
 Table of Contents
 
-   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
-     1.1.  The Need for Standardization . . . . . . . . . . . . . . .  3
-   2.  Basic Protocol Operation . . . . . . . . . . . . . . . . . . .  4
-   3.  Protocol Definition  . . . . . . . . . . . . . . . . . . . . .  5
-     3.1.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  5
-     3.2.  Foo  . . . . . . . . . . . . . . . . . . . . . . . . . . .  5
-   4.  Implementation Notes . . . . . . . . . . . . . . . . . . . . .  6
-   5.  Security Considerations  . . . . . . . . . . . . . . . . . . .  7
-   6.  References . . . . . . . . . . . . . . . . . . . . . . . . . .  8
-     6.1.  Normative References . . . . . . . . . . . . . . . . . . .  8
-     6.2.  Informative References . . . . . . . . . . . . . . . . . .  8
-   Appendix A.  Examples  . . . . . . . . . . . . . . . . . . . . . .  9
-   Author's Address . . . . . . . . . . . . . . . . . . . . . . . . . 10
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . . . 3
+     1.1.  The Need for Standards  . . . . . . . . . . . . . . . . . . 3
+     1.2.  Basic Operation . . . . . . . . . . . . . . . . . . . . . . 3
+   2.  Protocol Definition . . . . . . . . . . . . . . . . . . . . . . 3
+     2.1.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . 3
+   3.  Implementation Notes  . . . . . . . . . . . . . . . . . . . . . 3
+   4.  Security Considerations . . . . . . . . . . . . . . . . . . . . 4
+   5.  References  . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+   Appendix A.  Examples . . . . . . . . . . . . . . . . . . . . . . . 4
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . . . 4
 
 
 
@@ -108,15 +105,17 @@ Table of Contents
 
 
 
-Miller                  Expires November 16, 2015               [Page 2]
+
+
+
+Miller                  Expires November 17, 2015               [Page 2]
 
 Internet-Draft                    tmesh                         May 2015
 
 
 1.  Introduction
 
-   Low-power devices and long-range radios, PHY/MAC for telehash
-   [telehash]
+   Low-power devices and long-range radios, PHY/MAC for telehash [1]
 
    o  high density
 
@@ -135,153 +134,27 @@ Internet-Draft                    tmesh                         May 2015
 
    o  same absolute principles as telehash, no identity on the air
 
-1.1.  The Need for Standardization
+1.1.  The Need for Standards
 
    Only leaky, centralized, and commercial options.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Miller                  Expires November 16, 2015               [Page 3]
-
-Internet-Draft                    tmesh                         May 2015
-
-
-2.  Basic Protocol Operation
+1.2.  Basic Operation
 
    Overview
 
 
+2.  Protocol Definition
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Miller                  Expires November 16, 2015               [Page 4]
-
-Internet-Draft                    tmesh                         May 2015
-
-
-3.  Protocol Definition
-
-3.1.  Terminology
+2.1.  Terminology
 
    In this document, the key words "MUST", "MUST NOT", "REQUIRED",
    "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY",
-   and "OPTIONAL" are to be interpreted as described in BCP 14, RFC 2119
-   [RFC2119] and indicate requirement levels for compliant STuPiD
+   and "OPTIONAL" are to be interpreted as described in BCP 14, [RFC
+   2119] and indicate requirement levels for compliant TMesh
    implementations.
 
-3.2.  Foo
 
-   bar.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Miller                  Expires November 16, 2015               [Page 5]
-
-Internet-Draft                    tmesh                         May 2015
-
-
-4.  Implementation Notes
+3.  Implementation Notes
 
    notes
 
@@ -291,226 +164,43 @@ Internet-Draft                    tmesh                         May 2015
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Miller                  Expires November 16, 2015               [Page 6]
+Miller                  Expires November 17, 2015               [Page 3]
 
 Internet-Draft                    tmesh                         May 2015
 
 
-5.  Security Considerations
+4.  Security Considerations
 
    telehash based
 
 
+5.  References
 
+URIs
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Miller                  Expires November 16, 2015               [Page 7]
-
-Internet-Draft                    tmesh                         May 2015
-
-
-6.  References
-
-6.1.  Normative References
-
-   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
-              Requirement Levels", BCP 14, RFC 2119, March 1997.
-
-6.2.  Informative References
-
-   [telehash]
-              Miller, J., "telehash protocol v3.0", April 2015,
-              <http://telehash.org>.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Miller                  Expires November 16, 2015               [Page 8]
-
-Internet-Draft                    tmesh                         May 2015
+   [1]  <http://telehash.org>
 
 
 Appendix A.  Examples
 
    This appendix provides some examples of the tmesh protocol operation.
 
-   ~~~~~~~~~~ Request:
-
-   Response:
+                                   Request:
 
 
+                                   Response:
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Miller                  Expires November 16, 2015               [Page 9]
-
-Internet-Draft                    tmesh                         May 2015
 
 
 Author's Address
 
    Jeremie Miller
    Filament
+   Denver
+
 
    Email: jeremie@jabber.org
+   URI:
 
 
 
@@ -530,31 +220,5 @@ Author's Address
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Miller                  Expires November 16, 2015              [Page 10]
+Miller                  Expires November 17, 2015               [Page 4]
 

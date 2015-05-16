@@ -1,47 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE rfc SYSTEM 'rfc2629.dtd' []>
-<t>&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
-  &lt;?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?&gt;
+<rfc ipr="trust200902" category="info" docName="draft-miller-tmesh-00">
+<?rfc toc="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<front>
+<title abbrev="tmesh">TMesh - Thing Mesh PHY/MAC Protocol</title>
+
+<author initials="J." surname="Miller" fullname="Jeremie Miller">
+<organization>Filament</organization>
+<address>
+<postal>
+<street></street>
+<city>Denver</city>
+<code></code>
+<country></country>
+</postal>
+<email>jeremie@jabber.org</email>
+<uri></uri>
+</address>
+</author>
+<date year="2015" month="May" day="16"/>
+
+<area>Internet</area>
+<workgroup></workgroup>
+<keyword>mesh</keyword>
+<keyword>protocol</keyword>
+<keyword>telehash</keyword>
+<keyword>phy</keyword>
+
+
+<abstract>
+<t>Low-power devices and long-range radios, PHY/MAC for telehash
 </t>
-<t>&lt;!DOCTYPE rfc SYSTEM &quot;rfc2629.dtd&quot; [
-]&gt;
-</t>
-<t>&lt;?rfc toc=&quot;yes&quot;?&gt;
-&lt;?rfc sortrefs=&quot;yes&quot;?&gt;
-&lt;?rfc symrefs=&quot;yes&quot; ?&gt;
-</t>
+</abstract>
 
-<figure align="center"><artwork align="center">
-&lt;title abbrev="tmesh"&gt;
-  Thing Mesh
-&lt;/title&gt;
-&lt;author initials="J" surname="Miller" fullname="Jeremie Miller"&gt;
-  &lt;organization&gt;Filament&lt;/organization&gt;
-  &lt;address&gt;
-    &lt;email&gt;jeremie@jabber.org&lt;/email&gt;
-  &lt;/address&gt;
-&lt;/author&gt;
+</front>
 
+<middle>
 
-&lt;date year="2015" month="May" day="15"/&gt;
-
-&lt;area&gt;General&lt;/area&gt;
-&lt;workgroup&gt;&lt;/workgroup&gt;
-&lt;keyword&gt;Internet-Draft&lt;/keyword&gt;
-&lt;abstract&gt;
-  &lt;t&gt;
-  Low-power devices and long-range radios, PHY/MAC for telehash
-  &lt;/t&gt;
-&lt;/abstract&gt;
-</artwork></figure>
-<t>{:/nomarkdown}
-</t>
-
-<section anchor="introduction--------problems" title="Introduction        ">
-<t>Low-power devices and long-range radios, PHY/MAC for telehash {{telehash}}
+<section anchor="introduction" title="Introduction">
+<t>Low-power devices and long-range radios, PHY/MAC for <eref target="http://telehash.org">telehash</eref>
 </t>
 <t>
-<list anchor="problems" style="symbols">
+<list style="symbols">
 <t>high density</t>
 <t>very low power</t>
 <t>long range only</t>
@@ -53,30 +57,24 @@
 </list>
 </t>
 
-<section anchor="the-need-for-standardization---need" title="The Need for Standardization   ">
+<section anchor="the-need-for-standards" title="The Need for Standards">
 <t>Only leaky, centralized, and commercial options.
 </t>
 </section>
-</section>
 
-<section anchor="need" title="Basic Protocol Operation   ">
+<section anchor="basic-operation" title="Basic Operation">
 <t>Overview
 </t>
 </section>
-
-<section anchor="ops" title="Protocol Definition">
-
-<section anchor="terminology----------terminology" title="Terminology          ">
-<t>In this document, the key words &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;,
-&quot;SHALL&quot;, &quot;SHALL NOT&quot;, &quot;SHOULD&quot;, &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;MAY&quot;,
-and &quot;OPTIONAL&quot; are to be interpreted as described in BCP 14, RFC 2119
- and indicate requirement levels for compliant STuPiD
-implementations.
-</t>
 </section>
 
-<section anchor="Terminology" title="Foo">
-<t>bar.
+<section anchor="protocol-definition" title="Protocol Definition">
+
+<section anchor="terminology" title="Terminology">
+<t>In this document, the key words &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;,
+&quot;SHALL&quot;, &quot;SHALL NOT&quot;, &quot;SHOULD&quot;, &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;MAY&quot;,
+and &quot;OPTIONAL&quot; are to be interpreted as described in BCP 14, [RFC 2119]
+and indicate requirement levels for compliant TMesh implementations.
 </t>
 </section>
 </section>
@@ -89,41 +87,26 @@ implementations.
 <section anchor="security-considerations" title="Security Considerations">
 <t>telehash based
 </t>
-<t>{::nomarkdown}
-</t>
-<t>{:/nomarkdown}
-<eref target="RFC2119">:include:</eref>
-</t>
-<t>{::nomarkdown}
-</t>
-<t>{:/nomarkdown}
-</t>
-<t>{::nomarkdown}
-
-{:/nomarkdown}
-</t>
 </section>
 
-<section anchor="examples--xmp" title="Examples  ">
+<section anchor="references" title="References">
+</section>
+
+</middle>
+<back>
+
+<section anchor="examples" title="Examples">
 <t>This appendix provides some examples of the tmesh protocol operation.
 </t>
 
-<figure anchor="xmp" align="center"><artwork align="center">
+<figure align="center"><artwork align="center">
    Request:
 
 
    Response:
 
-
-{::nomarkdown}
-
-&lt;/back&gt;
-&lt;/rfc&gt;
 </artwork></figure>
 </section>
-
-</middle>
-<back>
 
 </back>
 </rfc>

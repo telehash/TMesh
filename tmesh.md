@@ -1,47 +1,35 @@
-<?xml version="1.0" encoding="UTF-8"?>
-  <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
+% Title = "TMesh - Thing Mesh PHY/MAC Protocol"
+% abbrev = "tmesh"
+% category = "info"
+% docName = "draft-miller-tmesh-00"
+% ipr= "trust200902"
+% area = "Internet"
+% workgroup = ""
+% keyword = ["mesh", "protocol", "telehash", "phy"]
+%
+% date = 2015-05-16T00:00:00Z
+%
+% [[author]]
+% initials="J."
+% surname="Miller"
+% fullname="Jeremie Miller"
+% #role="editor"
+% organization = "Filament"
+%   [author.address]
+%   email = "jeremie@jabber.org"
+%   [author.address.postal]
+%   city = "Denver"
+%   state = "Colorado"
 
-<!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
-]>
+.# Abstract
 
-<rfc ipr="trust200902" docName="draft-miller-tmesh-00" category="info" >
+Low-power devices and long-range radios, PHY/MAC for telehash
 
-<?rfc toc="yes"?>
-<?rfc sortrefs="yes"?>
-<?rfc symrefs="yes" ?>
+{mainmatter}
 
-  <front>
-    <title abbrev="tmesh">
-      Thing Mesh
-    </title>
-    <author initials="J" surname="Miller" fullname="Jeremie Miller">
-      <organization>Filament</organization>
-      <address>
-        <email>jeremie@jabber.org</email>
-      </address>
-    </author>
+# Introduction
 
-
-    <date year="2015" month="May" day="15"/>
-
-    <area>General</area>
-    <workgroup></workgroup>
-    <keyword>Internet-Draft</keyword>
-    <abstract>
-      <t>
-      Low-power devices and long-range radios, PHY/MAC for telehash
-      </t>
-    </abstract>
-  </front>
-
-  <middle>
-
-{:/nomarkdown}
-
-Introduction        {#problems}
-============
-
-Low-power devices and long-range radios, PHY/MAC for telehash {{telehash}}
+Low-power devices and long-range radios, PHY/MAC for [telehash]
 
   * high density
   * very low power
@@ -52,66 +40,37 @@ Low-power devices and long-range radios, PHY/MAC for telehash {{telehash}}
   * dynamic resource optimized (powered/gateway motes become natural leaders)
   * same absolute principles as telehash, no identity on the air
 
-The Need for Standardization   {#need}
-----------------------------
+## The Need for Standards
 
 Only leaky, centralized, and commercial options.
 
 
-Basic Protocol Operation   {#ops}
-========================
+## Basic Operation
 
 Overview
 
 
-Protocol Definition
-===================
+# Protocol Definition
 
-Terminology          {#Terminology}
------------
+## Terminology
 In this document, the key words "MUST", "MUST NOT", "REQUIRED",
 "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY",
-and "OPTIONAL" are to be interpreted as described in BCP 14, RFC 2119
-{{RFC2119}} and indicate requirement levels for compliant STuPiD
-implementations.
+and "OPTIONAL" are to be interpreted as described in BCP 14, [RFC 2119]
+and indicate requirement levels for compliant TMesh implementations.
 
 
-Foo
-----------------------------------------
-
-bar.
 
 
-Implementation Notes
-====================
+# Implementation Notes
 
 notes
 
 
-Security Considerations
-=======================
+# Security Considerations
 
 telehash based
 
-{::nomarkdown}
-
-</middle>
-
-<back>
-
-  <references title='Normative References'>
-
-{:/nomarkdown}
-![:include:](RFC2119)
-
-{::nomarkdown}
-
-  </references>
-
-  <references title='Informative References'>
-
-{:/nomarkdown}
-
+# References
 
 <reference anchor="telehash"  target="http://telehash.org">
 <front>
@@ -123,24 +82,18 @@ telehash based
 </front>
 </reference>
 
+{backmatter}
 
-{::nomarkdown}
-  </references>
-{:/nomarkdown}
-
-Examples  {#xmp}
-========
+# Examples
 
 This appendix provides some examples of the tmesh protocol operation.
 
-~~~~~~~~~~
+```
    Request:
 
 
    Response:
 
+```
 
-{::nomarkdown}
-
-</back>
-</rfc>
+[telehash]: http://telehash.org
