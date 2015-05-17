@@ -22,26 +22,32 @@
 
 .# Abstract
 
-Low-power devices and long-range radios, PHY/MAC for telehash
+A secure PHY/MAC based on [telehash] designed for low-power sleepy devices.
 
 {mainmatter}
 
 # Introduction
 
-Low-power devices and long-range radios, PHY/MAC for [telehash]
+As embedded devices continue to increase in capabilities while falling in cost there is a growing challenge to manage their energy resources for wirelessly networking them together.  While there are many options for short-range 2.4GHz networks such as Bluetooth Smart (BLE), low-power WiFi, Zigbee and 802.15.4 based mesh networks, there are few choices for long-range sub-GHz networking.
 
-  * high density
-  * very low power
-  * long range only
-  * high lateny only
-  * peer aware meshing
-  * high interference resiliency
-  * dynamic resource optimized (powered/gateway motes become natural leaders)
-  * same absolute principles as telehash, no identity on the air
+TMesh builds on the strong end-to-end encryption and privacy capabilities of [telehash v3] by adding a uniquely matched Physical RF and Media Access Control protocol.
 
+The key attributes of TMesh are:
+
+  * high density - thousands per square mile
+  * very low power - years on common batteries
+  * wide area - optimized for long-range capable radios
+  * high lateny - low duty cycle, 10s of seconds of sleep
+  * peer aware meshing - does not require special purpose coordinator motes
+  * high interference resiliency - bi-modal PHY to maximize connectivity in all conditions
+  * dynamically resource optimized - powered motes naturally provide more assistance
+  * no identity on the air - same absolute privacy and security principles as telehash
+  
 ## The Need for Standards
 
-Only leaky, centralized, and commercial options.
+The existing best choices are all either only partial solutions like 802.15.4, require membership to participate like LoRaWAN and ZigBee, or are focused on specific verticals like DASH7 and Wireless M-BUS.
+
+All other options only provide incomplete or indadequate security and privacy, most use only optional AES-128 and often with complicated or fixed provisioning-based key management.  No existing option attempts to protect the mote identity and network metadata from monitoring.
 
 
 ## Basic Operation
