@@ -63,19 +63,18 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 
 ## Vocabulary
 
-* `mote`
-* `knock`
-* `hard knock`
-* `soft knock`
-* `EVEN` / `ODD`
-* `window`
-* `window sequence`
-* `epoch`
-* `encoder`
-* `neighborhood`
-* `Z`
-* `leader`
-* `lost`
+* `mote` - a single physical transmitting/receiving device
+* `knock` - a single transmission
+* `hard knock` - a resource expensive but more reliable transmission
+* `soft knock` - an efficient quick transmission
+* `window` - the period for a knock
+* `window sequence` - each window will change frequency/channels in a sequence
+* `epoch` - one entire set of window sequences
+* `encoder` - the mapping of bits to the actual radio medium
+* `neighborhood` - the list of known nearby motes
+* `z-index` - the self-asserted resource level (priority) from any mote
+* `leader` - the highest z-index in any neighborhood
+* `lost` - when a mote hasn't knocked in one epoch or is reset
 
 ## Overview - PHY
 
@@ -97,9 +96,9 @@ Each encoder also specifies the knock `window` length, which is 2x the minimum a
 
 To operate as a mesh network, each mote maintains a list of its radio neighbors and shares that list with each of them for discovery.  This list is called a mote's `neighborhood` and contains mostly soft-knock neighbors with a few hard-knock only neighbors to maximize connectivity.
 
-Every mote calculates its own `Z` index, a uint8_t value that represents the resources it has available to assist with the mesh.  It will vary based on the battery level or fixed power, as well as if the mote has greater network access (is an internet bridge) or is well located (based on configuration).
+Every mote calculates its own `z-index`, a uint8_t value that represents the resources it has available to assist with the mesh.  It will vary based on the battery level or fixed power, as well as if the mote has greater network access (is an internet bridge) or is well located (based on configuration).
 
-The mote with the highest `Z` in any neighborhood is known as the `local leader`.
+The mote with the highest `z-index` in any neighborhood is known as the `local leader`.
 
 
 # Protocol Definition

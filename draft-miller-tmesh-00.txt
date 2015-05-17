@@ -192,29 +192,29 @@ Internet-Draft                    tmesh                         May 2015
 
 1.3.  Vocabulary
 
-   o  "mote"
+   o  "mote" - a single physical transmitting/receiving device
 
-   o  "knock"
+   o  "knock" - a single transmission
 
-   o  "hard knock"
+   o  "hard knock" - a resource expensive but more reliable transmission
 
-   o  "soft knock"
+   o  "soft knock" - an efficient quick transmission
 
-   o  "EVEN" / "ODD"
+   o  "window" - the period for a knock
 
-   o  "window"
+   o  "window sequence" - each window will change frequency/channels in
+      a sequence
 
-   o  "window sequence"
+   o  "epoch" - one entire set of window sequences
 
-   o  "epoch"
+   o  "encoder" - the mapping of bits to the actual radio medium
 
-   o  "encoder"
+   o  "neighborhood" - the list of known nearby motes
 
-   o  "neighborhood"
+   o  "z-index" - the self-asserted resource level (priority) from any
+      mote
 
-   o  "Z"
-
-   o  "leader"
+   o  "leader" - the highest z-index in any neighborhood
 
 
 
@@ -225,7 +225,7 @@ Miller                  Expires November 17, 2015               [Page 4]
 Internet-Draft                    tmesh                         May 2015
 
 
-   o  "lost"
+   o  "lost" - when a mote hasn't knocked in one epoch or is reset
 
 1.4.  Overview - PHY
 
@@ -272,7 +272,7 @@ Internet-Draft                    tmesh                         May 2015
    neighbors with a few hard-knock only neighbors to maximize
    connectivity.
 
-   Every mote calculates its own "Z" index, a uint8_t value that
+   Every mote calculates its own "z-index", a uint8_t value that
 
 
 
@@ -286,8 +286,8 @@ Internet-Draft                    tmesh                         May 2015
    the mote has greater network access (is an internet bridge) or is
    well located (based on configuration).
 
-   The mote with the highest "Z" in any neighborhood is known as the
-   "local leader".
+   The mote with the highest "z-index" in any neighborhood is known as
+   the "local leader".
 
 
 2.  Protocol Definition

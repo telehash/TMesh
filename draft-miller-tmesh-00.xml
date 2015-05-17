@@ -86,19 +86,18 @@
 <section anchor="vocabulary" title="Vocabulary">
 <t>
 <list style="symbols">
-<t><spanx style="verb">mote</spanx></t>
-<t><spanx style="verb">knock</spanx></t>
-<t><spanx style="verb">hard knock</spanx></t>
-<t><spanx style="verb">soft knock</spanx></t>
-<t><spanx style="verb">EVEN</spanx> / <spanx style="verb">ODD</spanx></t>
-<t><spanx style="verb">window</spanx></t>
-<t><spanx style="verb">window sequence</spanx></t>
-<t><spanx style="verb">epoch</spanx></t>
-<t><spanx style="verb">encoder</spanx></t>
-<t><spanx style="verb">neighborhood</spanx></t>
-<t><spanx style="verb">Z</spanx></t>
-<t><spanx style="verb">leader</spanx></t>
-<t><spanx style="verb">lost</spanx></t>
+<t><spanx style="verb">mote</spanx> - a single physical transmitting/receiving device</t>
+<t><spanx style="verb">knock</spanx> - a single transmission</t>
+<t><spanx style="verb">hard knock</spanx> - a resource expensive but more reliable transmission</t>
+<t><spanx style="verb">soft knock</spanx> - an efficient quick transmission</t>
+<t><spanx style="verb">window</spanx> - the period for a knock</t>
+<t><spanx style="verb">window sequence</spanx> - each window will change frequency/channels in a sequence</t>
+<t><spanx style="verb">epoch</spanx> - one entire set of window sequences</t>
+<t><spanx style="verb">encoder</spanx> - the mapping of bits to the actual radio medium</t>
+<t><spanx style="verb">neighborhood</spanx> - the list of known nearby motes</t>
+<t><spanx style="verb">z-index</spanx> - the self-asserted resource level (priority) from any mote</t>
+<t><spanx style="verb">leader</spanx> - the highest z-index in any neighborhood</t>
+<t><spanx style="verb">lost</spanx> - when a mote hasn't knocked in one epoch or is reset</t>
 </list>
 </t>
 </section>
@@ -123,9 +122,9 @@
 <section anchor="overview--mac" title="Overview - MAC">
 <t>To operate as a mesh network, each mote maintains a list of its radio neighbors and shares that list with each of them for discovery.  This list is called a mote's <spanx style="verb">neighborhood</spanx> and contains mostly soft-knock neighbors with a few hard-knock only neighbors to maximize connectivity.
 </t>
-<t>Every mote calculates its own <spanx style="verb">Z</spanx> index, a uint8_t value that represents the resources it has available to assist with the mesh.  It will vary based on the battery level or fixed power, as well as if the mote has greater network access (is an internet bridge) or is well located (based on configuration).
+<t>Every mote calculates its own <spanx style="verb">z-index</spanx>, a uint8_t value that represents the resources it has available to assist with the mesh.  It will vary based on the battery level or fixed power, as well as if the mote has greater network access (is an internet bridge) or is well located (based on configuration).
 </t>
-<t>The mote with the highest <spanx style="verb">Z</spanx> in any neighborhood is known as the <spanx style="verb">local leader</spanx>.
+<t>The mote with the highest <spanx style="verb">z-index</spanx> in any neighborhood is known as the <spanx style="verb">local leader</spanx>.
 </t>
 </section>
 </section>
