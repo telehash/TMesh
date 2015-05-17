@@ -62,34 +62,23 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 
 ## Basic Operation - PHY
 
-All radio PHY operations are bi-modal, with a `hard knock` and a `soft knock`.  Each `knock` is a single private transmission from one mote to another using an established telehash link session between them.
+All radio PHY operations are bi-modal, with a `hard knock` and a `soft knock`.  Each `knock` is a single private transmission from one mote to another using an established telehash link session between them.  The `knock` itself is always in two distinct parts, a single boolean notification followed by a short delay and the payload.  This allows the receiver to minimize the time listening.
 
-The `hard knock` is designed for maximum compatibility across any type of hardware transceiver and is not optimized for energy efficiency, it is the fallback mode after multiple `soft knock` failures.
+The `hard knock` is designed for maximum range and is not optimized for energy efficiency, it is the fallback mode after multiple `soft knock` failures.
 
-The `soft knock` is designed to take advantage of a transceivers most efficient modes and capabilities, multiple `soft knock` specifications exist, one for each major transceiver.
+The `soft knock` is designed to take advantage of a transceiver's most efficient modes and capabilities, always minimizing the energy required to transmit.
 
 Transmitted payloads do not need whitening as encrypted packets are inherently DC-free.  They also do not need CRC as all packets have authentication bytes included.
  
+Channel definitions are unique to each link and derived from the routing token.
 
 ## Basic Operation - MAC
 
-* trusted peers only, administration/provisioning adds/removes
-* each mote has a list of RF neighbors that it learns/discovers/shares, a neighborhood
-* share their resource level, local leader is who has the most
-* concept of soft and hard `knocks`, for optimal spectrum energy usage vs. highest compatible range
-* discoverable mode for provisioning only, beacon's its key with a hard knock
-* link is unique to each pair, every link is a unique rotating PHY pattern
-* soft knock (lowest power best settings, LoRa) and then hard knock (highest power worst settings, FSK)
-* each mote keep X soft knock neighbors and Y hard knock neighbors
-* a knock is purely boolean, when one is received it means start listening in that mode
-* try to keep soft/hard lists minimum but reliable, quiesce shrinks size of each
-* send packet for a mote directly to it, and then fallback to one known neighbor, then to the local leader
-* lost mode when all link state is lost, local leaders must help beacon for them to resync
-* resource based routing, highest resource gets undelivered packets
-* highest leader for the whole mesh is responsible for mapping the full mesh, collecting undelivered’s and re-routing them
-* natural pooling around local resources, neighborhoods
-* when you know a link's neighbors you can calculate their knock windows and use one instead of waiting for yours
-* soft knock is short and LNA/expensive for recipient, hard knock is long and cheaper for recipient
+To operate as a mesh network, each mote maintains a list of its radio neighbors and shares that list with each of them for discovery.  This list is called a mote's `neighborhood` and contains mostly soft-knock neighbors with a few hard-knock neighbors.
+
+Every mote calculates its own `Z` index, a uint8_t value that represents the resources it has available to assist with the mesh.  It will vary based on the battery level or fixed power, as well as if the mote has greater network access (is an internet bridge) or is well located (based on configuration).
+
+The mote with the highest `Z` in any neighborhood is known as the local leader.
 
 
 # Protocol Definition
@@ -101,6 +90,15 @@ and "OPTIONAL" are to be interpreted as described in BCP 14, [RFC 2119]
 and indicate requirement levels for compliant TMesh implementations.
 
 
+## Notes
+
+* try to keep soft/hard lists minimum but reliable, quiesce shrinks size of each
+* send packet for a mote directly to it, and then fallback to one known neighbor, then to the local leader
+* lost mode when all link state is lost, local leaders must help beacon for them to resync
+* resource based routing, highest resource gets undelivered packets
+* highest leader for the whole mesh is responsible for mapping the full mesh, collecting undelivered’s and re-routing them
+* natural pooling around local resources, neighborhoods
+* when you know a link's neighbors you can calculate their knock windows and use one instead of waiting for yours
 
 ## Link Windows
 
