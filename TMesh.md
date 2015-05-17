@@ -22,7 +22,7 @@
 
 .# Abstract
 
-A secure PHY/MAC based on [telehash] designed for low-power sleepy devices.
+A secure PHY/MAC based on [telehash][] designed for low-power sleepy devices.
 
 {mainmatter}
 
@@ -50,9 +50,28 @@ The existing best choices are all either only partial solutions like 802.15.4, r
 All other options only provide incomplete or indadequate security and privacy, most use only optional AES-128 and often with complicated or fixed provisioning-based key management.  No existing option attempts to protect the mote identity and network metadata from monitoring.
 
 
-## Basic Operation
+## Telehash Native
 
-Overview
+By leveraging [telehash][] as the native encryption and mote identity platform, TMesh can start with some strong assumptions:
+
+* each mote will have a unique stable 32-byte identity, the hashname
+* two linked motes will have a unique long-lived session id, the routing token
+* all payloads will be encrypted ciphertext
+* retransmissions and acknowledgements happen at a higher level and are not required
+* motes are members of a private mesh and only communicate with other verified members
+
+## Basic Operation - PHY
+
+All radio PHY operations are bi-modal, with a `hard knock` and a `soft knock`.  Each `knock` is a single private transmission from one mote to another using an established telehash link session between them.
+
+The `hard knock` is designed for maximum compatibility across any type of hardware transceiver and is not optimized for energy efficiency, it is the fallback mode after multiple `soft knock` failures.
+
+The `soft knock` is designed to take advantage of a transceivers most efficient modes and capabilities, multiple `soft knock` specifications exist, one for each major transceiver.
+
+Transmitted payloads do not need whitening as encrypted packets are inherently DC-free.  They also do not need CRC as all packets have authentication bytes included.
+ 
+
+## Basic Operation - MAC
 
 * trusted peers only, administration/provisioning adds/removes
 * each mote has a list of RF neighbors that it learns/discovers/shares, a neighborhood
@@ -82,12 +101,6 @@ and "OPTIONAL" are to be interpreted as described in BCP 14, [RFC 2119]
 and indicate requirement levels for compliant TMesh implementations.
 
 
-## PHY
-
-* each transceiver hardware defines own best soft knock
-* common hard knocks for compatibility and interop
-* doesn't need whitening as encrypted packets are DC-free
-* doesn't need CRC as packets all have authentication bits
 
 ## Link Windows
 
