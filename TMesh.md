@@ -59,22 +59,27 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 * all payloads will be encrypted ciphertext
 * retransmissions and acknowledgements happen at a higher level and are not required
 * motes are members of a private mesh and only communicate with other verified members
+* telehash defines a useful `EVEN` and `ODD` ordering relationship between two motes
 
 ## Basic Operation - PHY
 
-All radio PHY operations are bi-modal, with a `hard knock` and a `soft knock`.  Each `knock` is a single private transmission from one mote to another using an established telehash link session between them.  The `knock` itself is always in two distinct parts, a single boolean notification followed by a short delay and the payload.  This allows the receiver to minimize the time listening.
+All radio PHY operations are bi-modal, with a `hard knock` and a `soft knock`.  Each `knock` is a single private transmission between two motes using a previously established telehash link.  The `knock` itself is always in two distinct parts, a single boolean notification in either direction (`EVEN` then `ODD` mote) followed by a short delay and then the full payload transmission.  This allows the motes to minimize the time listening and maximize the time sleeping.
 
-The `hard knock` is designed for maximum range and is not optimized for energy efficiency, it is the fallback mode after multiple `soft knock` failures.
+The `hard knock` is designed for maximum range and is not optimized for energy efficiency, it is the fallback mode after any `soft knock` has timed out.
 
 The `soft knock` is designed to take advantage of a transceiver's most efficient modes and capabilities, always minimizing the energy required to transmit.
 
 Transmitted payloads do not need whitening as encrypted packets are inherently DC-free.  They also do not need CRC as all packets have authentication bytes included.
  
-Channel definitions are unique to each link and derived from the routing token.
+Channel frequency definitions are unique to each link and derived from the link's routing token.  The sequence of channels for each knock will do one full rotation per `sync` period, where at least one knock was required from each mote during for it to be valid and start over.
+
+There are multiple `knock encoders` defined that specify how each knock is actually transmitted via RF depending on the transceiver hardware's capabilities.  These range from highly compatible ones such as ASK, commonly available ones like GFSK, and more advanced/vendor-specific ones such as LoRa.  A mote advertises the encoders it supports as a telehash path.
+
+Each encoder also specifies the `knock window` length, which is 4x the minimum amount of time for a transceiver to transition between transmit and receive and must be larger than the maximum oscillator drift between sync periods.
 
 ## Basic Operation - MAC
 
-To operate as a mesh network, each mote maintains a list of its radio neighbors and shares that list with each of them for discovery.  This list is called a mote's `neighborhood` and contains mostly soft-knock neighbors with a few hard-knock neighbors.
+To operate as a mesh network, each mote maintains a list of its radio neighbors and shares that list with each of them for discovery.  This list is called a mote's `neighborhood` and contains mostly soft-knock neighbors with a few hard-knock only neighbors.
 
 Every mote calculates its own `Z` index, a uint8_t value that represents the resources it has available to assist with the mesh.  It will vary based on the battery level or fixed power, as well as if the mote has greater network access (is an internet bridge) or is well located (based on configuration).
 
@@ -92,13 +97,14 @@ and indicate requirement levels for compliant TMesh implementations.
 
 ## Notes
 
-* try to keep soft/hard lists minimum but reliable, quiesce shrinks size of each
+* try to keep soft/hard neighbor lists minimum but reliable, quiesce shrinks size of each
 * send packet for a mote directly to it, and then fallback to one known neighbor, then to the local leader
-* lost mode when all link state is lost, local leaders must help beacon for them to resync
+* any hard knock handshake must also be repeated as a short knock
+* lost mode when all link state is lost, local leaders must help by sending handshake knocks on a common encoder-defined channel for them to resync
 * resource based routing, highest resource gets undelivered packets
 * highest leader for the whole mesh is responsible for mapping the full mesh, collecting undelivered’s and re-routing them
 * natural pooling around local resources, neighborhoods
-* when you know a link's neighbors you can calculate their knock windows and use one instead of waiting for yours
+* when you know a link's neighbors you can calculate their knock windows and detect an unused one to transmit in instead of waiting for yours
 
 ## Link Windows
 
