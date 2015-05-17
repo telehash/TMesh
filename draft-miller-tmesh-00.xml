@@ -33,7 +33,7 @@
 
 
 <abstract>
-<t>Low-power devices and long-range radios, PHY/MAC for telehash
+<t>A secure PHY/MAC based on <eref target="http://telehash.org">telehash</eref> designed for low-power sleepy devices.
 </t>
 </abstract>
 
@@ -42,49 +42,90 @@
 <middle>
 
 <section anchor="introduction" title="Introduction">
-<t>Low-power devices and long-range radios, PHY/MAC for <eref target="http://telehash.org">telehash</eref>
+<t>As embedded devices continue to increase in capabilities while falling in cost there is a growing challenge to manage their energy resources for wirelessly networking them together.  While there are many options for short-range 2.4GHz networks such as Bluetooth Smart (BLE), low-power WiFi, Zigbee and 802.15.4 based mesh networks, there are few choices for long-range sub-GHz networking.
+</t>
+<t>TMesh builds on the strong end-to-end encryption and privacy capabilities of [telehash v3] by adding a uniquely matched Physical RF and Media Access Control protocol.
+</t>
+<t>The key attributes of TMesh are:
 </t>
 <t>
 <list style="symbols">
-<t>high density</t>
-<t>very low power</t>
-<t>long range only</t>
-<t>high lateny only</t>
-<t>peer aware meshing</t>
-<t>high interference resiliency</t>
-<t>dynamic resource optimized (powered/gateway motes become natural leaders)</t>
-<t>same absolute principles as telehash, no identity on the air</t>
+<t>high density - thousands per square mile</t>
+<t>very low power - years on common batteries</t>
+<t>wide area - optimized for long-range capable radios</t>
+<t>high lateny - low duty cycle, 10s of seconds of sleep</t>
+<t>peer aware meshing - does not require special purpose coordinator motes</t>
+<t>high interference resiliency - bi-modal PHY to maximize connectivity in all conditions</t>
+<t>dynamically resource optimized - powered motes naturally provide more assistance</t>
+<t>no identity on the air - same absolute privacy and security principles as telehash</t>
 </list>
 </t>
 
 <section anchor="the-need-for-standards" title="The Need for Standards">
-<t>Only leaky, centralized, and commercial options.
+<t>The existing best choices are all either only partial solutions like 802.15.4, require membership to participate like LoRaWAN and ZigBee, or are focused on specific verticals like DASH7 and Wireless M-BUS.
+</t>
+<t>All other options only provide incomplete or indadequate security and privacy, most use only optional AES-128 and often with complicated or fixed provisioning-based key management.  No existing option attempts to protect the mote identity and network metadata from monitoring.
 </t>
 </section>
 
-<section anchor="basic-operation" title="Basic Operation">
-<t>Overview
+<section anchor="telehash-native" title="Telehash Native">
+<t>By leveraging <eref target="http://telehash.org">telehash</eref> as the native encryption and mote identity platform, TMesh can start with some strong assumptions:
 </t>
 <t>
 <list style="symbols">
-<t>trusted peers only, administration/provisioning adds/removes</t>
-<t>each mote has a list of RF neighbors that it learns/discovers/shares, a neighborhood</t>
-<t>share their resource level, local leader is who has the most</t>
-<t>concept of soft and hard <spanx style="verb">knocks</spanx>, for optimal spectrum energy usage vs. highest compatible range</t>
-<t>discoverable mode for provisioning only, beacon's its key with a hard knock</t>
-<t>link is unique to each pair, every link is a unique rotating PHY pattern</t>
-<t>soft knock (lowest power best settings, LoRa) and then hard knock (highest power worst settings, FSK)</t>
-<t>each mote keep X soft knock neighbors and Y hard knock neighbors</t>
-<t>a knock is purely boolean, when one is received it means start listening in that mode</t>
-<t>try to keep soft/hard lists minimum but reliable, quiesce shrinks size of each</t>
-<t>send packet for a mote directly to it, and then fallback to one known neighbor, then to the local leader</t>
-<t>lost mode when all link state is lost, local leaders must help beacon for them to resync</t>
-<t>resource based routing, highest resource gets undelivered packets</t>
-<t>highest leader for the whole mesh is responsible for mapping the full mesh, collecting undelivered’s and re-routing them</t>
-<t>natural pooling around local resources, neighborhoods</t>
-<t>when you know a link's neighbors you can calculate their knock windows and use one instead of waiting for yours</t>
-<t>soft knock is short and LNA/expensive for recipient, hard knock is long and cheaper for recipient</t>
+<t>each mote will have a unique stable 32-byte identity, the hashname</t>
+<t>two linked motes will have a unique long-lived session id, the routing token</t>
+<t>all payloads will be encrypted ciphertext</t>
+<t>retransmissions and acknowledgements happen at a higher level and are not required</t>
+<t>motes are members of a private mesh and only communicate with other verified members</t>
+<t>telehash defines a useful <spanx style="verb">EVEN</spanx> and <spanx style="verb">ODD</spanx> ordering relationship between two motes</t>
 </list>
+</t>
+</section>
+
+<section anchor="vocabulary" title="Vocabulary">
+<t>
+<list style="symbols">
+<t><spanx style="verb">mote</spanx></t>
+<t><spanx style="verb">knock</spanx></t>
+<t><spanx style="verb">hard knock</spanx></t>
+<t><spanx style="verb">soft knock</spanx></t>
+<t><spanx style="verb">EVEN</spanx> / <spanx style="verb">ODD</spanx></t>
+<t><spanx style="verb">window</spanx></t>
+<t><spanx style="verb">window sequence</spanx></t>
+<t><spanx style="verb">epoch</spanx></t>
+<t><spanx style="verb">encoder</spanx></t>
+<t><spanx style="verb">neighborhood</spanx></t>
+<t><spanx style="verb">Z</spanx></t>
+<t><spanx style="verb">leader</spanx></t>
+<t><spanx style="verb">lost</spanx></t>
+</list>
+</t>
+</section>
+
+<section anchor="overview--phy" title="Overview - PHY">
+<t>All radio PHY operations are bi-modal, with a <spanx style="verb">hard knock</spanx> and a <spanx style="verb">soft knock</spanx>.  Each <spanx style="verb">knock</spanx> is a single private transmission from one mote to another using an established telehash link.  The <spanx style="verb">knock</spanx> itself is always in two distinct parts, a single boolean notification followed by a short delay and then the full payload transmission.
+</t>
+<t>The <spanx style="verb">hard knock</spanx> is designed for maximum range and is not optimized for energy efficiency, it is the fallback mode after any <spanx style="verb">soft knock</spanx> has timed out.
+</t>
+<t>The <spanx style="verb">soft knock</spanx> is designed to take advantage of a transceiver's most efficient modes and capabilities, always minimizing the energy required to transmit.
+</t>
+<t>Transmitted payloads do not need whitening as encrypted packets are inherently DC-free.  They also do not need CRC as all packets have authentication bytes included.
+</t>
+<t>Channel frequency definitions are unique to each link and derived from the link's routing token.  The <spanx style="verb">window sequence</spanx> for each knock will do one full rotation per <spanx style="verb">epoch</spanx>, where at least one knock was required from each mote during for it to be valid and start over.
+</t>
+<t>There are multiple <spanx style="verb">knock encoders</spanx> defined that specify how each knock is actually transmitted via RF depending on the transceiver hardware's capabilities.  These range from highly compatible ones such as ASK, commonly available ones like GFSK, and more advanced/vendor-specific ones such as LoRa.  A mote advertises the encoders it supports as a telehash path.
+</t>
+<t>Each encoder also specifies the knock <spanx style="verb">window</spanx> length, which is 2x the minimum amount of time for a transceiver to transition between transmit and receive and determines the maximum allowable oscillator drift between epochs.
+</t>
+</section>
+
+<section anchor="overview--mac" title="Overview - MAC">
+<t>To operate as a mesh network, each mote maintains a list of its radio neighbors and shares that list with each of them for discovery.  This list is called a mote's <spanx style="verb">neighborhood</spanx> and contains mostly soft-knock neighbors with a few hard-knock only neighbors to maximize connectivity.
+</t>
+<t>Every mote calculates its own <spanx style="verb">Z</spanx> index, a uint8_t value that represents the resources it has available to assist with the mesh.  It will vary based on the battery level or fixed power, as well as if the mote has greater network access (is an internet bridge) or is well located (based on configuration).
+</t>
+<t>The mote with the highest <spanx style="verb">Z</spanx> in any neighborhood is known as the <spanx style="verb">local leader</spanx>.
 </t>
 </section>
 </section>
@@ -99,13 +140,22 @@ and indicate requirement levels for compliant TMesh implementations.
 </t>
 </section>
 
-<section anchor="phy" title="PHY">
+<section anchor="notes" title="Notes">
 <t>
 <list style="symbols">
-<t>each transceiver hardware defines own best soft knock</t>
-<t>common hard knocks for compatibility and interop</t>
-<t>doesn't need whitening as encrypted packets are DC-free</t>
-<t>doesn't need CRC as packets all have authentication bits</t>
+<t>try to keep soft/hard neighbor lists minimum but reliable, quiesce shrinks size of each</t>
+<t>send packet for a mote directly to it, and then fallback to one known neighbor, then to the local leader</t>
+<t>any hard knock handshake must also be repeated as a soft knock</t>
+<t>lost mode is when all link state is lost or all epochs expired, local leaders must help by sending handshake knocks on a common encoder-defined channel for them to resync
+<list style="symbols">
+<t>begin listening for any hard knock handshakes, generate link id and sync to it then handshake there</t>
+<t>if sleepy, only listen on the lost schedule</t>
+<t>local leaders are required to hard knock per epoch on the lost schedule</t>
+</list></t>
+<t>resource based routing, highest resource gets undelivered packets</t>
+<t>highest leader for the whole mesh is responsible for mapping the full mesh, collecting undelivered’s and re-routing them</t>
+<t>natural pooling around local resources, neighborhoods</t>
+<t>when you know a link's neighbors you can calculate their knock windows and detect an unused one to transmit in instead of waiting for yours</t>
 </list>
 </t>
 </section>
@@ -113,38 +163,20 @@ and indicate requirement levels for compliant TMesh implementations.
 <section anchor="link-windows" title="Link Windows">
 <t>
 <list style="symbols">
-<t>link ids determine window pattern</t>
+<t>link ids determine window sequence pattern</t>
 <t>step through each bit of the id
 <list style="symbols">
 <t>derive unique soft/hard knock parameters</t>
-<t>derive time until next window</t>
+<t>derive time until next window (variable)</t>
 <t>each pass through the full id is called an <spanx style="verb">epoch</spanx></t>
 </list></t>
 <t>a confirmed knock over any link is a sync, know the current bit the sender is on for all their links</t>
-<t>can use a neighbors window if no soft knock is detected, send hard knock</t>
+<t>can use a neighbors window if no soft knock is detected</t>
 <t>sleepy motes calculate the epoch peak density across all their neighbors and only wake then
 <list style="symbols">
 <t>knocks are only tried twice outside of that peak, and once again inside</t>
 </list></t>
-</list>
-</t>
-</section>
-
-<section anchor="knocks" title="Knocks">
-<t>
-<list style="symbols">
-<t>preamble/sync is derived from link id and window bit</t>
-<t>only identifies the window, not the sender</t>
-<t>payload is the sender's link id or a new link request</t>
-<t>immediately knock back w/ the same data as a continue/ready</t>
-<t>if no soft knock back, immediately hard knock the same</t>
-<t>after knock-knock, same preamble and packet payload</t>
-<t>knock to continue any more packets</t>
-<t>sleep after no more</t>
-<t>if busy until next transmit window, always skip it</t>
-<t>never transmit into the next receive window</t>
-<t>requires no application logic/lookups/parsing</t>
-<t>requires no spectral detection</t>
+<t>calculate neighbor windows to detect conflicts and avoid overlapping</t>
 </list>
 </t>
 </section>
@@ -157,7 +189,7 @@ and indicate requirement levels for compliant TMesh implementations.
 <t>handshakes</t>
 <t>z-index priority set</t>
 <t>link established</t>
-<t>link id created (routing token and z-index byte)</t>
+<t>link id created (routing token and z-index byte?)</t>
 </list></t>
 <t>existing mote informs mesh of new link
 <list style="symbols">
@@ -166,7 +198,7 @@ and indicate requirement levels for compliant TMesh implementations.
 </list></t>
 <t>existing mote shares mesh to new mote
 <list style="symbols">
-<t>sends its neighbors</t>
+<t>sends its neighborhood</t>
 <t>sends the mesh top leader list</t>
 </list></t>
 <t>new mote attempts to reach neighbors to establish links</t>
@@ -176,27 +208,12 @@ and indicate requirement levels for compliant TMesh implementations.
 </list>
 </t>
 </section>
-
-<section anchor="lost" title="Lost">
-<t>
-<list style="symbols">
-<t>after any power reset (loss of link state), or after a full epoch of no responses to any knocks</t>
-<t>begin listening for any hard knocks, detect link id and sync to it then handshake there</t>
-<t>if sleepy, only listen on the lost schedule</t>
-<t>local leaders are required to hard knock per epoch on the lost schedule</t>
-</list>
-</t>
-</section>
 </section>
 
 <section anchor="implementation-notes" title="Implementation Notes">
-<t>notes
-</t>
 </section>
 
 <section anchor="security-considerations" title="Security Considerations">
-<t>telehash based
-</t>
 </section>
 
 <section anchor="references" title="References">
