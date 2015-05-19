@@ -78,6 +78,14 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 
 ## Overview - PHY
 
+> REFACTORING WIP
+> just one hard knock per epoch
+> soft knock sends 1byte length to start
+> always ack any knock in next possible receive window
+> resend to next shared neighbor if no ack
+> rework the neighbor tracking away from knock type balance
+> an epoch is based on number of neighbors, total knocks
+
 All radio PHY operations are bi-modal, with a `hard knock` and a `soft knock`.  Each `knock` is a single private transmission from one mote to another using an established telehash link.  The `knock` itself is always in two distinct parts, a single boolean notification followed by a short delay and then the full payload transmission.
 
 The `hard knock` is designed for maximum range and is not optimized for energy efficiency, it is the fallback mode after any `soft knock` has timed out.
