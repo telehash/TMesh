@@ -86,6 +86,23 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 > rework the neighbor tracking away from knock type balance
 > an epoch is based on number of neighbors, total knocks
 
+> lost mode is handshake only, contains knock + recipient id window + block, then blocks back and forth
+> step sequence w/ soft then hard, ack a block at same step to continue that step and that is the epoch, don't go higher than available budget for an epoch
+> knocks are only one direction
+> use budget to maximize/balance between neighbors/epochs
+
+> epoch seed, id is position in neighborhood, 1 byte
+> seed is 8 bytes, contains PHY details and random, is salsa key
+> neighborhood contains id, seed, tick
+> X tick is input counter to epoch seed window
+> salsa20 each packet to recipient
+> enc packet first byte is forward flag, epoch id
+> instead of chunking, skip or short window to terminate
+> neighborhood updates are only salsa'd and a header of >1
+> * header contins z byte and epoch id byte
+> * body is seed-to, seed-from, z, offset, hashname
+> route request is a header len >1 <7 and body of hashname+packet
+
 All radio PHY operations are bi-modal, with a `hard knock` and a `soft knock`.  Each `knock` is a single private transmission from one mote to another using an established telehash link.  The `knock` itself is always in two distinct parts, a single boolean notification followed by a short delay and then the full payload transmission.
 
 The `hard knock` is designed for maximum range and is not optimized for energy efficiency, it is the fallback mode after any `soft knock` has timed out.
