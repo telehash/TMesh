@@ -57,26 +57,42 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 * each mote will have a unique stable 32-byte identity, the hashname
 * two linked motes will have a unique long-lived session id, the routing token
 * all payloads will be encrypted ciphertext
-* retransmissions and acknowledgements happen at a higher level and are not required
+* retransmissions and acknowledgements happen at a higher level and are not required in the framing
 * motes are members of a private mesh and only communicate with other verified members
-* telehash defines a useful `EVEN` and `ODD` ordering relationship between two motes
 
 ## Vocabulary
 
 * `mote` - a single physical transmitting/receiving device
 * `knock` - a single transmission
-* `hard knock` - a resource expensive but more reliable transmission
-* `soft knock` - an efficient quick transmission
 * `window` - the period for a knock
 * `window sequence` - each window will change frequency/channels in a sequence
 * `epoch` - one entire set of window sequences
-* `encoder` - the mapping of bits to the actual radio medium
 * `neighborhood` - the list of known nearby motes
 * `z-index` - the self-asserted resource level (priority) from any mote
-* `leader` - the highest z-index in any neighborhood
+* `leader` - the highest z-index visible in any mote's neighborhood
 * `lost` - when a mote hasn't knocked in one epoch or is reset
 
-## Overview - PHY
+## Overview
+
+TMesh is the composite of three distinct layers, the physical radio medium encoding (PHY), the shared management of the spectrum (MAC), and the networking relationships between 2+ motes (Mesh).
+
+Common across all of these is the concept of an `epoch`, which is a fixed period of time of 2^30 microseconds (about 18 minutes).  An epoch is broken into 256 `windows` (about 4.2 seconds each) where one `knock` can occur from one mote to another with a specified PHY unique to that epoch.  A `knock` is the transmission of up to 128 bytes of encrypted payload, plus any PHY or error correcting overhead.
+
+Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will often have multiple epochs to increase the bandwidth available from the minimum 1/4 kbps average.  The number and types of epochs available depend entirely on the available energy budget, every epoch type has a fixed energy budget for its lifetime for transmission cost.
+
+### PHY
+
+
+
+### MAC
+
+
+
+### Mesh
+
+
+
+ - PHY
 
 > REFACTORING WIP
 > just one hard knock per epoch
