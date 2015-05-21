@@ -76,20 +76,35 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 
 TMesh is the composite of three distinct layers, the physical radio medium encoding (PHY), the shared management of the spectrum (MAC), and the networking relationships between 2+ motes (Mesh).
 
-Common across all of these is the concept of an `epoch`, which is a fixed period of time of 2^30 microseconds (about 18 minutes).  An epoch is broken into 256 `windows` (about 4.2 seconds each) where one `knock` can occur from one mote to another with a specified PHY unique to that epoch.  A `knock` is the transmission of up to 128 bytes of encrypted payload, plus any PHY or error correcting overhead.
+Common across all of these is the concept of an `epoch`, which is a fixed period of time of 2^30 microseconds (about 18 minutes).  An epoch is broken into 256 `windows` (about 4.2 seconds each) where one `knock` can occur from one mote to another with a specified PHY unique to that epoch.  A `knock` is the transmission of up to 128 bytes of encrypted payload, plus any PHY-specific overhead.
 
-Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will often have multiple epochs to increase the bandwidth available from the minimum 1/4 kbps average.  The number and types of epochs available depend entirely on the available energy budget, every epoch type has a fixed energy budget for its lifetime for transmission cost.
+Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will often have multiple epochs with other motes to increase the bandwidth available from the minimum 1/4 kbps average per epoch.  The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost for its lifetime.
 
 ### PHY
 
+An `epoch` is defined with a unique 16-byte identifier, specifying the exact PHY encoding details and including random bytes that act as a unique seed for that epoch.
 
+The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed.
+
+The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, etc details on the transmission/reception, and must use the random seed to vary the transmission frequency and specific timing offset of each window in the epoch.
 
 ### MAC
 
+There is no mote addressing or other metadata included in the encoded bytes, no framing other than the length of the payload.  The uniqueness of the timing and signalling of each epoch is the mote addressing mechanism.
 
+The epoch 16 bytes are used as an AES-128 key, and the current count of windows since the first sync is used as the IV.  All payloads are encrypted before transmission even if they are already encrypted telehash packets.
+
+Additional MAC-only packet types are defined for exchanging the current set of epochs active between any two motes.  An additional pre-set `lost` mode is defined for bootstrapping two motes from scratch or if they loose sync.
+
+Each mote should actively make use of multiple epochs with more efficient options to optimize the overall energy usage.  Every mote advertises their current energy resource level as a `z-index` as an additional mesh optimization strategy.
 
 ### Mesh
 
+There is two mechanisms used for enabling a larger scale mesh network with TMesh, `neighborhoods` (MAC layer) and `routers` (telehash/app layer).
+
+A neighborhood is the automatic sharing of other epochs one mote has active with every other mote it is linked with.  Every mote also supports a simple MAC-level window forwarding service between neighbors to aid with discovery and resiliency.
+
+A router is always the neighbor with the highest z-index, which inherits the responsibility to monitor each neighbor's neighborhood for other routers and establish direct or bridged links with them.  Any mote with a packet for a non-local hashname will send it to their router, whom will send it to the next highest router it is connected to until it reaches the highest in the mesh.  The highest resourced router is responsible for maintaining an index of all available motes/hashnames in the mesh.
 
 
  - PHY
