@@ -103,6 +103,39 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 > * body is seed-to, seed-from, z, offset, hashname
 > route request is a header len >1 <7 and body of hashname+packet
 
+* energy based, total energy budget per epoch
+* remove existing epochs for balance available, use to reach new neighbors or optimize existing
+* multiple secondary epochs per hashname when few neighbors to fill budget, only advertise primary to others
+* minimum 1 epoch for lowest budget
+* each epoch phy has different fixed cost
+* epoch windows are 5seconds, epochs are 21 minutes
+* tick determines each window's exact start time
+
+> phy is epoch seed
+> mac is neighbors/epochs/ticks
+> app-level binding to hashnames, not in mac
+> forwarded packets can be stacked
+> aes-128 not salsa20, iv is epoch counter + window counter
+> can send extra ec bytes at end of payload if space and energy and time
+
+* a window is 2^22 microseconds, or about 4.2 seconds
+* an epoch is 256 windows, (2^30 microseconds), or about 18 minutes
+* each window can contain one knock
+* the energy budget determines the number of epochs active, minimum one, maximum is the time budget
+* each epoch has a 16-byte seed that determines frequency and position in each window
+  * 0 - device (lora)
+  * 1 - power & medium
+  * 2 - config1
+  * 3 - config2
+  * 4,5,6,7 - random
+  * 8+ random
+* each one has a table of energy and time budget
+
+Epoch PHY - LoRa
+
+
+
+
 All radio PHY operations are bi-modal, with a `hard knock` and a `soft knock`.  Each `knock` is a single private transmission from one mote to another using an established telehash link.  The `knock` itself is always in two distinct parts, a single boolean notification followed by a short delay and then the full payload transmission.
 
 The `hard knock` is designed for maximum range and is not optimized for energy efficiency, it is the fallback mode after any `soft knock` has timed out.
