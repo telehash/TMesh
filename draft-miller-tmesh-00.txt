@@ -63,26 +63,26 @@ Table of Contents
      1.1.  The Need for Standards  . . . . . . . . . . . . . . . . . . 3
      1.2.  Telehash Native . . . . . . . . . . . . . . . . . . . . . . 4
      1.3.  Vocabulary  . . . . . . . . . . . . . . . . . . . . . . . . 4
-     1.4.  Overview - PHY  . . . . . . . . . . . . . . . . . . . . . . 5
-     1.5.  Overview - MAC  . . . . . . . . . . . . . . . . . . . . . . 5
+     1.4.  Overview  . . . . . . . . . . . . . . . . . . . . . . . . . 4
+       1.4.1.  PHY . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+       1.4.2.  MAC . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+       1.4.3.  Mesh  . . . . . . . . . . . . . . . . . . . . . . . . . 6
    2.  Protocol Definition . . . . . . . . . . . . . . . . . . . . . . 6
      2.1.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . 6
-     2.2.  Notes . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
-     2.3.  Link Windows  . . . . . . . . . . . . . . . . . . . . . . . 7
-     2.4.  Flow  . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+     2.2.  PHY . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+       2.2.1.  OOK . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+       2.2.2.  (G)FSK  . . . . . . . . . . . . . . . . . . . . . . . . 7
+       2.2.3.  LoRa  . . . . . . . . . . . . . . . . . . . . . . . . . 7
+     2.3.  MAC . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+       2.3.1.  Lost Mode . . . . . . . . . . . . . . . . . . . . . . . 7
+     2.4.  Mesh  . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+       2.4.1.  z-index . . . . . . . . . . . . . . . . . . . . . . . . 8
+     2.5.  Notes . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
    3.  Implementation Notes  . . . . . . . . . . . . . . . . . . . . . 8
    4.  Security Considerations . . . . . . . . . . . . . . . . . . . . 8
    5.  References  . . . . . . . . . . . . . . . . . . . . . . . . . . 8
-   Appendix A.  Examples . . . . . . . . . . . . . . . . . . . . . . . 8
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . . . 8
-
-
-
-
-
-
-
-
+   Appendix A.  Examples . . . . . . . . . . . . . . . . . . . . . . . 9
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . . . 9
 
 
 
@@ -182,23 +182,16 @@ Internet-Draft                    tmesh                         May 2015
    o  all payloads will be encrypted ciphertext
 
    o  retransmissions and acknowledgements happen at a higher level and
-      are not required
+      are not required in the framing
 
    o  motes are members of a private mesh and only communicate with
       other verified members
-
-   o  telehash defines a useful "EVEN" and "ODD" ordering relationship
-      between two motes
 
 1.3.  Vocabulary
 
    o  "mote" - a single physical transmitting/receiving device
 
    o  "knock" - a single transmission
-
-   o  "hard knock" - a resource expensive but more reliable transmission
-
-   o  "soft knock" - an efficient quick transmission
 
    o  "window" - the period for a knock
 
@@ -207,16 +200,23 @@ Internet-Draft                    tmesh                         May 2015
 
    o  "epoch" - one entire set of window sequences
 
-   o  "encoder" - the mapping of bits to the actual radio medium
-
    o  "neighborhood" - the list of known nearby motes
 
    o  "z-index" - the self-asserted resource level (priority) from any
       mote
 
-   o  "leader" - the highest z-index in any neighborhood
+   o  "leader" - the highest z-index visible in any mote's neighborhood
 
+   o  "lost" - when a mote hasn't knocked in one epoch or is reset
 
+1.4.  Overview
+
+   TMesh is the composite of three distinct layers, the physical radio
+   medium encoding (PHY), the shared management of the spectrum (MAC),
+   and the networking relationships between 2+ motes (Mesh).
+
+   Common across all of these is the concept of an "epoch", which is a
+   fixed period of time of 2^30 microseconds (about 18 minutes).  An
 
 
 
@@ -225,54 +225,54 @@ Miller                  Expires November 17, 2015               [Page 4]
 Internet-Draft                    tmesh                         May 2015
 
 
-   o  "lost" - when a mote hasn't knocked in one epoch or is reset
+   epoch is broken into 256 "windows" (about 4.2 seconds each) where one
+   "knock" can occur from one mote to another with a specified PHY
+   unique to that epoch.  A "knock" is the transmission of up to 128
+   bytes of encrypted payload, plus any PHY-specific overhead.
 
-1.4.  Overview - PHY
+   Every mote has at least one receiving epoch and one sending epoch per
+   link to another mote, and will often have multiple epochs with other
+   motes to increase the bandwidth available from the minimum 1/4 kbps
+   average per epoch.  The number and types of epochs available depend
+   entirely on the current energy budget, every epoch type has a fixed
+   minimum energy cost for its lifetime.
 
-   All radio PHY operations are bi-modal, with a "hard knock" and a
-   "soft knock".  Each "knock" is a single private transmission from one
-   mote to another using an established telehash link.  The "knock"
-   itself is always in two distinct parts, a single boolean notification
-   followed by a short delay and then the full payload transmission.
+1.4.1.  PHY
 
-   The "hard knock" is designed for maximum range and is not optimized
-   for energy efficiency, it is the fallback mode after any "soft knock"
-   has timed out.
+   An "epoch" is defined with a unique 16-byte identifier, specifying
+   the exact PHY encoding details and including random bytes that act as
+   a unique seed for that epoch.
 
-   The "soft knock" is designed to take advantage of a transceiver's
-   most efficient modes and capabilities, always minimizing the energy
-   required to transmit.
+   The first byte is a fixed "type" that determines the category of PHY
+   encoding technique to use, often these are different modes on
+   transceivers.  The following 1-7 bytes are headers that are specified
+   by each type of encoding, and the remaining 8 bytes are always a
+   unique random seed.
+
+   The PHY encoding uses the headers to determine the power, channel,
+   spreading, bitrate, etc details on the transmission/reception, and
+   must use the random seed to vary the transmission frequency and
+   specific timing offset of each window in the epoch.
 
    Transmitted payloads do not need whitening as encrypted packets are
-   inherently DC-free.  They also do not need CRC as all packets have
-   authentication bytes included.
+   by nature DC-free.  They also do not need CRC as all telehash packets
+   have authentication bytes included.
 
-   Channel frequency definitions are unique to each link and derived
-   from the link's routing token.  The "window sequence" for each knock
-   will do one full rotation per "epoch", where at least one knock was
-   required from each mote during for it to be valid and start over.
+1.4.2.  MAC
 
-   There are multiple "knock encoders" defined that specify how each
-   knock is actually transmitted via RF depending on the transceiver
-   hardware's capabilities.  These range from highly compatible ones
-   such as ASK, commonly available ones like GFSK, and more advanced/
-   vendor-specific ones such as LoRa.  A mote advertises the encoders it
-   supports as a telehash path.
+   There is no mote addressing or other metadata included in the encoded
+   bytes, no framing other than the length of the payload.  The
+   uniqueness of the timing and signalling of each epoch is the mote
+   addressing mechanism.
 
-   Each encoder also specifies the knock "window" length, which is 2x
-   the minimum amount of time for a transceiver to transition between
-   transmit and receive and determines the maximum allowable oscillator
-   drift between epochs.
+   The epoch 16 bytes are used as an AES-128 key, and the current count
+   of windows since the first sync is used as the IV.  All payloads are
+   encrypted before transmission even if they are already encrypted
+   telehash packets.
 
-1.5.  Overview - MAC
-
-   To operate as a mesh network, each mote maintains a list of its radio
-   neighbors and shares that list with each of them for discovery.  This
-   list is called a mote's "neighborhood" and contains mostly soft-knock
-   neighbors with a few hard-knock only neighbors to maximize
-   connectivity.
-
-   Every mote calculates its own "z-index", a uint8_t value that
+   Additional MAC-only packet types are defined for exchanging the
+   current set of epochs active between any two motes.  An additional
+   pre-set "lost" mode is defined for bootstrapping two motes from
 
 
 
@@ -281,13 +281,34 @@ Miller                  Expires November 17, 2015               [Page 5]
 Internet-Draft                    tmesh                         May 2015
 
 
-   represents the resources it has available to assist with the mesh.
-   It will vary based on the battery level or fixed power, as well as if
-   the mote has greater network access (is an internet bridge) or is
-   well located (based on configuration).
+   scratch or if they loose sync.
 
-   The mote with the highest "z-index" in any neighborhood is known as
-   the "local leader".
+   Each mote should actively make use of multiple epochs with more
+   efficient options to optimize the overall energy usage.  Every mote
+   advertises their current energy resource level as a "z-index" as an
+   additional mesh optimization strategy.
+
+1.4.3.  Mesh
+
+   There is two mechanisms used for enabling a larger scale mesh network
+   with TMesh, "neighborhoods" (MAC layer) and "routers" (telehash/app
+   layer).
+
+   A neighborhood is the automatic sharing of other epochs one mote has
+   active with every other mote it is linked with.  Every mote also
+   supports a simple MAC-level window sequential forwarding service
+   between neighbors to aid with discovery and resiliency.  The
+   neighborhood map shared from each mote includes a unique addressible
+   epoch id, the epoch, microsecond offset, and signal strength.
+
+   A router is always the neighbor with the highest z-index, which
+   inherits the responsibility to monitor each neighbor's neighborhood
+   for other routers and establish direct or bridged links with them.
+   Any mote with a packet for a non-local hashname will send it to their
+   router, whom will send it to the next highest router it is connected
+   to until it reaches the highest in the mesh.  The highest resourced
+   router is responsible for maintaining an index of all available
+   motes/hashnames in the mesh.
 
 
 2.  Protocol Definition
@@ -300,15 +321,93 @@ Internet-Draft                    tmesh                         May 2015
    2119] and indicate requirement levels for compliant TMesh
    implementations.
 
-2.2.  Notes
+2.2.  PHY
 
-   o  try to keep soft/hard neighbor lists minimum but reliable, quiesce
-      shrinks size of each
+   Epoch type table:
+
+
+
+
+
+
+
+
+Miller                  Expires November 17, 2015               [Page 6]
+
+Internet-Draft                    tmesh                         May 2015
+
+
+                            +------+----------+
+                            | Byte | Encoding |
+                            +------+----------+
+                            | 0x00 | Reserved |
+                            | 0x01 |    OOK   |
+                            | 0x02 |  (G)FSK  |
+                            | 0x03 |   LoRa   |
+                            +------+----------+
+
+2.2.1.  OOK
+
+   TBD
+
+2.2.2.  (G)FSK
+
+   TBD
+
+2.2.3.  LoRa
+
+   Epoch Header
+
+   o  byte 1 - dB power level & frequency band selector (915, 868, 433,
+      etc)
+
+   o  byte 2 - Bw & CodingRate (RegModemConfig 1)
+
+   o  byte 3 - SpreadingFactor (RegModemConfig 2)
+
+   o  byte 4-7 - random
+
+   Knock is a 1-byte transmission of the knock length, a wait for it to
+   be received/processed, then the payload.
+
+2.3.  MAC
+
+2.3.1.  Lost Mode
+
+   Each PHY documents a single lost-mode epoch header, no encryption and
+   only encodes a handshake with the recipient being the last 8 bytes of
+   the epoch id.
+
+2.4.  Mesh
+
+   Describe neighborhoods and routers, and routers performing ongoing
+   lost-mode duties.
+
+
+
+
+
+
+Miller                  Expires November 17, 2015               [Page 7]
+
+Internet-Draft                    tmesh                         May 2015
+
+
+2.4.1.  z-index
+
+   Every mote calculates its own "z-index", a uint8_t value that
+   represents the resources it has available to assist with the mesh.
+   It will vary based on the battery level or fixed power, as well as if
+   the mote has greater network access (is an internet bridge) or is
+   well located (based on configuration).
+
+   The mote with the highest "z-index" in any neighborhood is known as
+   the "local leader".
+
+2.5.  Notes
 
    o  send packet for a mote directly to it, and then fallback to one
       known neighbor, then to the local leader
-
-   o  any hard knock handshake must also be repeated as a soft knock
 
    o  lost mode is when all link state is lost or all epochs expired,
       local leaders must help by sending handshake knocks on a common
@@ -329,85 +428,8 @@ Internet-Draft                    tmesh                         May 2015
 
    o  natural pooling around local resources, neighborhoods
 
-
-
-
-Miller                  Expires November 17, 2015               [Page 6]
-
-Internet-Draft                    tmesh                         May 2015
-
-
    o  when you know a link's neighbors you can calculate their knock
-      windows and detect an unused one to transmit in instead of waiting
-      for yours
-
-2.3.  Link Windows
-
-   o  link ids determine window sequence pattern
-
-   o  step through each bit of the id
-
-      *  derive unique soft/hard knock parameters
-
-      *  derive time until next window (variable)
-
-      *  each pass through the full id is called an "epoch"
-
-   o  a confirmed knock over any link is a sync, know the current bit
-      the sender is on for all their links
-
-   o  can use a neighbors window if no soft knock is detected
-
-   o  sleepy motes calculate the epoch peak density across all their
-      neighbors and only wake then
-
-      *  knocks are only tried twice outside of that peak, and once
-         again inside
-
-   o  calculate neighbor windows to detect conflicts and avoid
-      overlapping
-
-2.4.  Flow
-
-   1.  mote must be initially paired to another
-
-       *  handshakes
-
-       *  z-index priority set
-
-       *  link established
-
-       *  link id created (routing token and z-index byte?)
-
-   2.  existing mote informs mesh of new link
-
-       *  sends to mesh leader for overall routing
-
-       *  if link is a neighbor, updates other neighbors
-
-
-
-
-Miller                  Expires November 17, 2015               [Page 7]
-
-Internet-Draft                    tmesh                         May 2015
-
-
-   3.  existing mote shares mesh to new mote
-
-       *  sends its neighborhood
-
-       *  sends the mesh top leader list
-
-   4.  new mote attempts to reach neighbors to establish links
-
-   5.  build/maintain neighborhood list of X soft and Y hard knock
-
-   6.  each mote sends its neighborhood to each neighbor after it's
-       changed since the last epoch
-
-   7.  a neighbor is only considered lost after it has not responded to
-       a full epoch
+      windows and detect possible overlaps to optimize for interference
 
 
 3.  Implementation Notes
@@ -419,6 +441,13 @@ Internet-Draft                    tmesh                         May 2015
 5.  References
 
 URIs
+
+
+
+Miller                  Expires November 17, 2015               [Page 8]
+
+Internet-Draft                    tmesh                         May 2015
+
 
    [1]  <http://telehash.org>
 
@@ -434,21 +463,6 @@ Appendix A.  Examples
 
 
 
-
-
-
-
-
-
-
-
-
-
-Miller                  Expires November 17, 2015               [Page 8]
-
-Internet-Draft                    tmesh                         May 2015
-
-
 Author's Address
 
    Jeremie Miller
@@ -458,20 +472,6 @@ Author's Address
 
    Email: jeremie@jabber.org
    URI:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
