@@ -45,10 +45,9 @@ The key attributes of TMesh are:
   
 ## The Need for Standards
 
-The existing best choices are all either only partial solutions like 802.15.4, require membership to participate like LoRaWAN and ZigBee, or are focused on specific verticals like DASH7 and Wireless M-BUS.
+The existing best choices are all either only partial solutions like 802.15.4, require membership to participate like LoRaWAN, ZigBee, and Z-Wave, or are focused on specific verticals like DASH7 and Wireless M-Bus.
 
 All other options only provide incomplete or indadequate security and privacy, most use only optional AES-128 and often with complicated or fixed provisioning-based key management.  No existing option attempts to protect the mote identity and network metadata from monitoring.
-
 
 ## Telehash Native
 
@@ -129,6 +128,7 @@ Epoch type table:
 | 0x01  | OOK
 | 0x02  | (G)FSK
 | 0x03  | LoRa
+| 0x04  | (O)QPSK
 
 ### OOK
 
@@ -142,14 +142,34 @@ TBD
 
 Epoch Header
 
-* byte 1 - dB power level & frequency band selector (915, 868, 433, etc)
-* byte 2 - Bw & CodingRate (RegModemConfig 1)
-* byte 3 - SpreadingFactor (RegModemConfig 2)
-* byte 4-7 - random
+* byte 1 - transmitting energy mA
+* byte 2 - standard frequency range (see table)
+* byte 3 - Bw & CodingRate (RegModemConfig 1)
+* byte 4 - SpreadingFactor (RegModemConfig 2)
+* byte 5-7 - random
 
 All preambles are set to the minimum size of 6.
 
 LoRa is used in implicit header mode, which requires a knock to be in two individual transmissions: a 1-byte transmission of the knock length, a wait for it to be received/processed, then the 0-128 byte payload transmission.
+
+Freq Table:
+
+| Region | Low | High | mW (erp) | Reg             | ID   |
+|--------|-----|------|----------|-----------------|------|
+| US     | 902 | 928  | 100      | FCC part 15.247 | 0x01 |
+| EU     | 863 | 870  |          | ETSI EN 300-220 | 0x02 |
+| Japan  | 915 | 930  |          | ARIB T-108      | 0x03 |
+| China  | 779 | 787  | 10       | SRRC            | 0x04 |
+
+Notes on ranges:
+* [SRRC](http://www.srrccn.org/srrc-approval-new2.htm)
+* [Z-Wave](http://image.slidesharecdn.com/smarthometechshort-13304126815608-phpapp01-120228010616-phpapp01/95/smart-home-tech-short-14-728.jpg)
+* [Atmel](http://blog.atmel.com/2013/04/23/praise-the-lord-a-new-sub-1ghz-rf-transceiver-supporting-4-major-regional-frequency-bands/)
+
+
+### (O)QPSK
+
+TBD
 
 ## MAC
 
