@@ -59,6 +59,7 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 * all payloads will be encrypted ciphertext
 * retransmissions and acknowledgements happen at a higher level and are not required in the framing
 * motes are members of a private mesh and only communicate with other verified members
+* chunked encoding is used to serialize variable length packets into fixed transmission frames
 
 ## Vocabulary
 
@@ -146,7 +147,9 @@ Epoch Header
 * byte 3 - SpreadingFactor (RegModemConfig 2)
 * byte 4-7 - random
 
-Knock is a 1-byte transmission of the knock length, a wait for it to be received/processed, then the payload.
+All preambles are set to the minimum size of 6.
+
+LoRa is used in implicit header mode, which requires a knock to be in two individual transmissions: a 1-byte transmission of the knock length, a wait for it to be received/processed, then the 0-128 byte payload transmission.
 
 ## MAC
 
