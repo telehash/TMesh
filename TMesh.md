@@ -152,7 +152,9 @@ Knock is a 1-byte transmission of the knock length, a wait for it to be received
 
 ### Lost Mode
 
-Each PHY documents a single lost-mode epoch header, no encryption and only encodes a handshake with the recipient being the last 8 bytes of the epoch id.
+Each PHY documents a sequence of lost-mode epoch headers, only encodes a handshake with the recipient hashname being the random bytes of the epoch id.   Each fixed header in the lost sequence is an individual transmission window, with the current offset being the sequence id, which repeat once the sequence is complete.
+
+The sequence should include a variety of different epoch types, focusing on long range, boosted, and more interference resistant modes, as well as some lower power ones for when the energy budget is low.  When possible it should be specifically optimized such that the lost recipient may switch between multiple epochs within one window to maximize the lost recovery time.
 
 ## Mesh
 
