@@ -28,20 +28,20 @@ A secure PHY/MAC based on [telehash][] designed for low-power sleepy devices.
 
 # Introduction
 
-As embedded devices continue to increase in capabilities while falling in cost there is a growing challenge to manage their energy resources for wirelessly networking them together.  While there are many options for short-range 2.4GHz networks such as Bluetooth Smart (BLE), low-power WiFi, Zigbee and 802.15.4 based mesh networks, there are few choices for long-range sub-GHz networking.
+As embedded devices continue to increase in capabilities while falling in cost there is a growing challenge to manage their energy resources for wirelessly networking them together.  While there are many options for short-range 2.4GHz networks such as Bluetooth Smart (BLE), low-power WiFi, Zigbee and 802.15.4 based mesh networks, there are few choices for long-range sub-GHz mesh networking.
 
-TMesh builds on the strong end-to-end encryption and privacy capabilities of [telehash v3] by adding a uniquely matched Physical RF and Media Access Control protocol.
+TMesh builds on the strong end-to-end encryption and privacy capabilities of [telehash v3] by adding a uniquely matched secure Physical RF and Media Access Control protocol.
 
 The key attributes of TMesh are:
 
   * high density - thousands per square mile
-  * very low power - years on common batteries
+  * very low power - years on coin cell batteries
   * wide area - optimized for long-range capable radios
-  * high lateny - low duty cycle, 10s of seconds of sleep
-  * peer aware meshing - does not require special purpose coordinator motes
+  * high lateny - low minimum duty cycle from seconds to minutes
+  * peer aware meshing - does not require dedicated coordinator motes
   * high interference resiliency - bi-modal PHY to maximize connectivity in all conditions
   * dynamically resource optimized - powered motes naturally provide more assistance
-  * no identity on the air - same absolute privacy and security principles as telehash
+  * zero metadata broadcast - same absolute privacy and security principles as telehash
   
 ## The Need for Standards
 
@@ -146,7 +146,7 @@ Epoch Header
 * byte 2 - standard frequency range (see table)
 * byte 3 - Bw & CodingRate (RegModemConfig 1)
 * byte 4 - SpreadingFactor (RegModemConfig 2)
-* byte 5-7 - random
+* byte 5-7 - zeros (reserved)
 
 All preambles are set to the minimum size of 6.
 
