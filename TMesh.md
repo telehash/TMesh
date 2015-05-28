@@ -55,18 +55,18 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 
 * each mote will have a unique stable 32-byte identity, the hashname
 * two linked motes will have a unique long-lived session id, the routing token
-* all payloads will be encrypted ciphertext
+* all payloads will be encrypted ciphertext with forward secrecy
 * retransmissions and acknowledgements happen at a higher level and are not required in the framing
 * motes are members of a private mesh and only communicate with other verified members
-* chunked encoding is used to serialize variable length packets into fixed transmission frames
+* chunked encoding defines how to serialize variable length packets into fixed transmission frames
 
 ## Vocabulary
 
 * `mote` - a single physical transmitting/receiving device
 * `knock` - a single transmission
-* `window` - the period for a knock
+* `window` - the period for a knock, 2^22 microseconds (~4.2 seconds)
 * `window sequence` - each window will change frequency/channels in a sequence
-* `epoch` - one entire set of window sequences
+* `epoch` - one entire set of window sequences, 256 windows / 2^30 microseconds (~18 minutes)
 * `neighborhood` - the list of known nearby motes
 * `z-index` - the self-asserted resource level (priority) from any mote
 * `leader` - the highest z-index visible in any mote's neighborhood
@@ -76,27 +76,31 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 
 TMesh is the composite of three distinct layers, the physical radio medium encoding (PHY), the shared management of the spectrum (MAC), and the networking relationships between 2+ motes (Mesh).
 
-Common across all of these is the concept of an `epoch`, which is a fixed period of time of 2^30 microseconds (about 18 minutes).  An epoch is broken into 256 `windows` (about 4.2 seconds each) where one `knock` can occur from one mote to another with a specified PHY unique to that epoch.  A `knock` is the transmission of up to 128 bytes of encrypted payload, plus any PHY-specific overhead.
+Common across all of these is the concept of an `epoch`, which is a fixed period of time of 2^30 microseconds.  An epoch is broken into 256 `windows` where one `knock` can occur from one mote to another with a specified PHY unique to that epoch.  A `knock` is the transmission of a 64 byte fixed frame of payload, plus any PHY-specific overhead (preamble).
 
-Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will often have multiple epochs with other motes to increase the bandwidth available from the minimum 1/4 kbps average per epoch.  The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost for its lifetime.
+Each epoch is capable of a max throughput of 120bps, or a total of 16k over the full epoch period (about 18 minutes). Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will often have multiple epochs with other motes to increase the bandwidth available.
+
+The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost for its lifetime.
 
 ### PHY
 
-An `epoch` is defined with a unique 16-byte identifier, specifying the exact PHY encoding details and including random bytes that act as a unique seed for that epoch.
+An `epoch` is defined with a unique 16-byte identifier, specifying the exact PHY encoding details and including random bytes that serve as a shared key for that epoch.
 
 The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed.
 
-The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, etc details on the transmission/reception, and must use the random seed to vary the transmission frequency and specific timing offset of each window in the epoch.
+The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, etc details on the transmission/reception, and must use the random seed to vary the transmission frequency and specific knock timing offset of each window in the epoch.
 
 Transmitted payloads do not need whitening as encrypted packets are by nature DC-free.  They also do not need CRC as all telehash packets have authentication bytes included.
+
+If the chunk-encoded encrypted payload does not fill the fixed 64 byte frame the remaining bytes must contain additional error correcting data.
 
 ### MAC
 
 There is no mote addressing or other metadata included in the encoded bytes, no framing other than the length of the payload.  The uniqueness of the timing and signalling of each epoch is the mote addressing mechanism.
 
-The epoch 16 bytes are used as an AES-128 key, and the current count of windows since the first sync is used as the IV.  All payloads are encrypted before transmission even if they are already encrypted telehash packets.
+The epoch 16 bytes are used as an AES-128 key, and the current count of total windows since the first sync is used as the IV.  All payloads are encrypted before transmission regardless of if they are already encrypted.
 
-Additional MAC-only packet types are defined for exchanging the current set of epochs active between any two motes.  An additional pre-set `lost` mode is defined for bootstrapping two motes from scratch or if they loose sync.
+Additional MAC-only packet types are defined for exchanging the current set of epochs active between any two motes.  An additional pre-set `lost` mode is defined for bootstrapping motes from scratch or if they loose sync.
 
 Each mote should actively make use of multiple epochs with more efficient options to optimize the overall energy usage.  Every mote advertises their current energy resource level as a `z-index` as an additional mesh optimization strategy.
 
@@ -150,7 +154,7 @@ Epoch Header
 
 All preambles are set to the minimum size of 6.
 
-LoRa is used in implicit header mode, which requires a knock to be in two individual transmissions: a 1-byte transmission of the knock length, a wait for it to be received/processed, then the 0-128 byte payload transmission.
+LoRa is used in implicit header mode with a fixed size of 64.
 
 Freq Table:
 
@@ -175,9 +179,13 @@ TBD
 
 ### Lost Mode
 
-Each PHY documents a sequence of lost-mode epoch headers, only encodes a handshake with the recipient hashname being the random bytes of the epoch id.   Each fixed header in the lost sequence is an individual transmission window, with the current offset being the sequence id, which repeat once the sequence is complete.
+Every mesh must define and share one or more `lost epochs` that are used to send beacons for synchronization of any lost motes.
 
-The sequence should include a variety of different epoch types, focusing on long range, boosted, and more interference resistant modes, as well as some lower power ones for when the energy budget is low.  When possible it should be specifically optimized such that the lost recipient may switch between multiple epochs within one window to maximize the lost recovery time.
+The lost epoch headers are combined with the first 8 bytes of each mote's hashname to derive every mote-specific lost epoch.  When lost or seeking a lost mote, a beacon with a minimum/zero length is transmitted during the mesh lost epoch to signal the mote's timing sync and current window (based on the frequency).
+
+The mote's individual lost epoch must only be used to receive handshakes that contain the unique link epochs available.
+
+Motes may run multiple concurrent lost epochs to minimize the discovery time.
 
 ## Mesh
 
@@ -191,11 +199,9 @@ The mote with the highest `z-index` in any neighborhood is known as the `local l
 
 ## Notes
 
+* if a packet chunk is incomplete in one window, prioritize subsequent windows from that mote
 * send packet for a mote directly to it, and then fallback to one known neighbor, then to the local leader
-* lost mode is when all link state is lost or all epochs expired, local leaders must help by sending handshake knocks on a common encoder-defined channel for them to resync
-  * begin listening for any hard knock handshakes, generate link id and sync to it then handshake there
-  * if sleepy, only listen on the lost schedule
-  * local leaders are required to hard knock per epoch on the lost schedule
+* lost mode is when all link state is lost or all epochs expired, local leaders run the lost epochs and may coordinate to minimize
 * resource based routing, highest resource gets undelivered packets
 * highest leader for the whole mesh is responsible for mapping the full mesh, collecting undelivered’s and re-routing them
 * natural pooling around local resources, neighborhoods
