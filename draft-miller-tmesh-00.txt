@@ -59,31 +59,31 @@ Internet-Draft                    tmesh                         May 2015
 
 Table of Contents
 
-   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . . . 3
-     1.1.  The Need for Standards  . . . . . . . . . . . . . . . . . . 3
-     1.2.  Telehash Native . . . . . . . . . . . . . . . . . . . . . . 4
-     1.3.  Vocabulary  . . . . . . . . . . . . . . . . . . . . . . . . 4
-     1.4.  Overview  . . . . . . . . . . . . . . . . . . . . . . . . . 4
-       1.4.1.  PHY . . . . . . . . . . . . . . . . . . . . . . . . . . 5
-       1.4.2.  MAC . . . . . . . . . . . . . . . . . . . . . . . . . . 5
-       1.4.3.  Mesh  . . . . . . . . . . . . . . . . . . . . . . . . . 6
-   2.  Protocol Definition . . . . . . . . . . . . . . . . . . . . . . 6
-     2.1.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . 6
-     2.2.  PHY . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
-       2.2.1.  OOK . . . . . . . . . . . . . . . . . . . . . . . . . . 7
-       2.2.2.  (G)FSK  . . . . . . . . . . . . . . . . . . . . . . . . 7
-       2.2.3.  LoRa  . . . . . . . . . . . . . . . . . . . . . . . . . 7
-     2.3.  MAC . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
-       2.3.1.  Lost Mode . . . . . . . . . . . . . . . . . . . . . . . 7
-     2.4.  Mesh  . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
-       2.4.1.  z-index . . . . . . . . . . . . . . . . . . . . . . . . 8
-     2.5.  Notes . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
-   3.  Implementation Notes  . . . . . . . . . . . . . . . . . . . . . 8
-   4.  Security Considerations . . . . . . . . . . . . . . . . . . . . 8
-   5.  References  . . . . . . . . . . . . . . . . . . . . . . . . . . 8
-   Appendix A.  Examples . . . . . . . . . . . . . . . . . . . . . . . 9
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . . . 9
-
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
+     1.1.  The Need for Standards . . . . . . . . . . . . . . . . . .  3
+     1.2.  Telehash Native  . . . . . . . . . . . . . . . . . . . . .  4
+     1.3.  Vocabulary . . . . . . . . . . . . . . . . . . . . . . . .  4
+     1.4.  Overview . . . . . . . . . . . . . . . . . . . . . . . . .  5
+       1.4.1.  PHY  . . . . . . . . . . . . . . . . . . . . . . . . .  5
+       1.4.2.  MAC  . . . . . . . . . . . . . . . . . . . . . . . . .  6
+       1.4.3.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . .  6
+   2.  Protocol Definition  . . . . . . . . . . . . . . . . . . . . .  7
+     2.1.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  7
+     2.2.  PHY  . . . . . . . . . . . . . . . . . . . . . . . . . . .  7
+       2.2.1.  OOK  . . . . . . . . . . . . . . . . . . . . . . . . .  7
+       2.2.2.  (G)FSK . . . . . . . . . . . . . . . . . . . . . . . .  7
+       2.2.3.  LoRa . . . . . . . . . . . . . . . . . . . . . . . . .  7
+       2.2.4.  (O)QPSK  . . . . . . . . . . . . . . . . . . . . . . .  8
+     2.3.  MAC  . . . . . . . . . . . . . . . . . . . . . . . . . . .  8
+       2.3.1.  Lost Mode  . . . . . . . . . . . . . . . . . . . . . .  8
+     2.4.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . . . .  9
+       2.4.1.  z-index  . . . . . . . . . . . . . . . . . . . . . . .  9
+     2.5.  Notes  . . . . . . . . . . . . . . . . . . . . . . . . . .  9
+   3.  Implementation Notes . . . . . . . . . . . . . . . . . . . . .  9
+   4.  Security Considerations  . . . . . . . . . . . . . . . . . . .  9
+   5.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 10
+   Appendix A.  Examples  . . . . . . . . . . . . . . . . . . . . . . 10
+   Author's Address . . . . . . . . . . . . . . . . . . . . . . . . . 10
 
 
 
@@ -120,24 +120,23 @@ Internet-Draft                    tmesh                         May 2015
    resources for wirelessly networking them together.  While there are
    many options for short-range 2.4GHz networks such as Bluetooth Smart
    (BLE), low-power WiFi, Zigbee and 802.15.4 based mesh networks, there
-   are few choices for long-range sub-GHz networking.
+   are few choices for long-range sub-GHz mesh networking.
 
    TMesh builds on the strong end-to-end encryption and privacy
-   capabilities of [telehash v3] by adding a uniquely matched Physical
-   RF and Media Access Control protocol.
+   capabilities of [telehash v3] by adding a uniquely matched secure
+   Physical RF and Media Access Control protocol.
 
    The key attributes of TMesh are:
 
    o  high density - thousands per square mile
 
-   o  very low power - years on common batteries
+   o  very low power - years on coin cell batteries
 
    o  wide area - optimized for long-range capable radios
 
-   o  high lateny - low duty cycle, 10s of seconds of sleep
+   o  high lateny - low minimum duty cycle from seconds to minutes
 
-   o  peer aware meshing - does not require special purpose coordinator
-      motes
+   o  peer aware meshing - does not require dedicated coordinator motes
 
    o  high interference resiliency - bi-modal PHY to maximize
       connectivity in all conditions
@@ -145,14 +144,15 @@ Internet-Draft                    tmesh                         May 2015
    o  dynamically resource optimized - powered motes naturally provide
       more assistance
 
-   o  no identity on the air - same absolute privacy and security
+   o  zero metadata broadcast - same absolute privacy and security
       principles as telehash
 
 1.1.  The Need for Standards
 
    The existing best choices are all either only partial solutions like
-   802.15.4, require membership to participate like LoRaWAN and ZigBee,
-   or are focused on specific verticals like DASH7 and Wireless M-BUS.
+   802.15.4, require membership to participate like LoRaWAN, ZigBee, and
+   Z-Wave, or are focused on specific verticals like DASH7 and Wireless
+   M-Bus.
 
    All other options only provide incomplete or indadequate security and
    privacy, most use only optional AES-128 and often with complicated or
@@ -179,7 +179,7 @@ Internet-Draft                    tmesh                         May 2015
    o  two linked motes will have a unique long-lived session id, the
       routing token
 
-   o  all payloads will be encrypted ciphertext
+   o  all payloads will be encrypted ciphertext with forward secrecy
 
    o  retransmissions and acknowledgements happen at a higher level and
       are not required in the framing
@@ -187,18 +187,23 @@ Internet-Draft                    tmesh                         May 2015
    o  motes are members of a private mesh and only communicate with
       other verified members
 
+   o  chunked encoding defines how to serialize variable length packets
+      into fixed transmission frames
+
 1.3.  Vocabulary
 
    o  "mote" - a single physical transmitting/receiving device
 
    o  "knock" - a single transmission
 
-   o  "window" - the period for a knock
+   o  "window" - the period for a knock, 2^22 microseconds (~4.2
+      seconds)
 
    o  "window sequence" - each window will change frequency/channels in
       a sequence
 
-   o  "epoch" - one entire set of window sequences
+   o  "epoch" - one entire set of window sequences, 256 windows / 2^30
+      microseconds (~18 minutes)
 
    o  "neighborhood" - the list of known nearby motes
 
@@ -209,14 +214,9 @@ Internet-Draft                    tmesh                         May 2015
 
    o  "lost" - when a mote hasn't knocked in one epoch or is reset
 
-1.4.  Overview
 
-   TMesh is the composite of three distinct layers, the physical radio
-   medium encoding (PHY), the shared management of the spectrum (MAC),
-   and the networking relationships between 2+ motes (Mesh).
 
-   Common across all of these is the concept of an "epoch", which is a
-   fixed period of time of 2^30 microseconds (about 18 minutes).  An
+
 
 
 
@@ -225,38 +225,70 @@ Miller                  Expires November 17, 2015               [Page 4]
 Internet-Draft                    tmesh                         May 2015
 
 
-   epoch is broken into 256 "windows" (about 4.2 seconds each) where one
-   "knock" can occur from one mote to another with a specified PHY
-   unique to that epoch.  A "knock" is the transmission of up to 128
-   bytes of encrypted payload, plus any PHY-specific overhead.
+1.4.  Overview
 
-   Every mote has at least one receiving epoch and one sending epoch per
-   link to another mote, and will often have multiple epochs with other
-   motes to increase the bandwidth available from the minimum 1/4 kbps
-   average per epoch.  The number and types of epochs available depend
-   entirely on the current energy budget, every epoch type has a fixed
-   minimum energy cost for its lifetime.
+   TMesh is the composite of three distinct layers, the physical radio
+   medium encoding (PHY), the shared management of the spectrum (MAC),
+   and the networking relationships between 2+ motes (Mesh).
+
+   Common across all of these is the concept of an "epoch", which is a
+   fixed period of time of 2^30 microseconds.  An epoch is broken into
+   256 "windows" where one "knock" can occur from one mote to another
+   with a specified PHY unique to that epoch.  A "knock" is the
+   transmission of a 64 byte fixed frame of payload, plus any PHY-
+   specific overhead (preamble).
+
+   Each epoch is capable of a max throughput of 120bps, or a total of
+   16k over the full epoch period (about 18 minutes).  Every mote has at
+   least one receiving epoch and one sending epoch per link to another
+   mote, and will often have multiple epochs with other motes to
+   increase the bandwidth available.
+
+   The number and types of epochs available depend entirely on the
+   current energy budget, every epoch type has a fixed minimum energy
+   cost for its lifetime.
 
 1.4.1.  PHY
 
    An "epoch" is defined with a unique 16-byte identifier, specifying
-   the exact PHY encoding details and including random bytes that act as
-   a unique seed for that epoch.
+   the exact PHY encoding details and including random bytes that serve
+   as a shared key for that epoch.
 
    The first byte is a fixed "type" that determines the category of PHY
    encoding technique to use, often these are different modes on
    transceivers.  The following 1-7 bytes are headers that are specified
    by each type of encoding, and the remaining 8 bytes are always a
-   unique random seed.
+   unique random seed body.
 
    The PHY encoding uses the headers to determine the power, channel,
-   spreading, bitrate, etc details on the transmission/reception, and
-   must use the random seed to vary the transmission frequency and
-   specific timing offset of each window in the epoch.
+   spreading, bitrate, the use of any FEC coding, etc details on the
+   transmission/reception.  The PHY must use the entire epoch identifer
+   including the random seed body and the current epoch counter to vary
+   the transmission frequency and specific knock timing offset of each
+   window in the epoch.
 
    Transmitted payloads do not need whitening as encrypted packets are
    by nature DC-free.  They also do not need CRC as all telehash packets
-   have authentication bytes included.
+   have authentication bytes included for integrity verification.
+
+   If the chunk-encoded encrypted payload does not fill the fixed 64
+   byte frame the remaining bytes must contain additional data so as to
+
+
+
+Miller                  Expires November 17, 2015               [Page 5]
+
+Internet-Draft                    tmesh                         May 2015
+
+
+   not reveal the payload size.
+
+      WIP - determine a standard filler data format that will add
+      additional dynamically sized error correction, explore taking
+      advantage of the fact that the inner and outer bitstreams are
+      encrypted and bias-free (Gaussian distribution divergence?), the
+      last byte should always duplicate the first/length to ensure
+      differentiation between payload/filler
 
 1.4.2.  MAC
 
@@ -266,22 +298,14 @@ Internet-Draft                    tmesh                         May 2015
    addressing mechanism.
 
    The epoch 16 bytes are used as an AES-128 key, and the current count
-   of windows since the first sync is used as the IV.  All payloads are
-   encrypted before transmission even if they are already encrypted
-   telehash packets.
+   of total windows since the first sync is used as the IV.  All
+   payloads are encrypted before transmission regardless of if they are
+   already encrypted.
 
    Additional MAC-only packet types are defined for exchanging the
    current set of epochs active between any two motes.  An additional
-   pre-set "lost" mode is defined for bootstrapping two motes from
-
-
-
-Miller                  Expires November 17, 2015               [Page 5]
-
-Internet-Draft                    tmesh                         May 2015
-
-
-   scratch or if they loose sync.
+   pre-set "lost" mode is defined for bootstrapping motes from scratch
+   or if they loose sync.
 
    Each mote should actively make use of multiple epochs with more
    efficient options to optimize the overall energy usage.  Every mote
@@ -305,6 +329,14 @@ Internet-Draft                    tmesh                         May 2015
    inherits the responsibility to monitor each neighbor's neighborhood
    for other routers and establish direct or bridged links with them.
    Any mote with a packet for a non-local hashname will send it to their
+
+
+
+Miller                  Expires November 17, 2015               [Page 6]
+
+Internet-Draft                    tmesh                         May 2015
+
+
    router, whom will send it to the next highest router it is connected
    to until it reaches the highest in the mesh.  The highest resourced
    router is responsible for maintaining an index of all available
@@ -325,18 +357,6 @@ Internet-Draft                    tmesh                         May 2015
 
    Epoch type table:
 
-
-
-
-
-
-
-
-Miller                  Expires November 17, 2015               [Page 6]
-
-Internet-Draft                    tmesh                         May 2015
-
-
                             +------+----------+
                             | Byte | Encoding |
                             +------+----------+
@@ -344,6 +364,7 @@ Internet-Draft                    tmesh                         May 2015
                             | 0x01 |    OOK   |
                             | 0x02 |  (G)FSK  |
                             | 0x03 |   LoRa   |
+                            | 0x04 |  (O)QPSK |
                             +------+----------+
 
 2.2.1.  OOK
@@ -358,32 +379,11 @@ Internet-Draft                    tmesh                         May 2015
 
    Epoch Header
 
-   o  byte 1 - dB power level & frequency band selector (915, 868, 433,
-      etc)
+   o  byte 1 - transmitting energy mA
 
-   o  byte 2 - Bw & CodingRate (RegModemConfig 1)
+   o  byte 2 - standard frequency range (see table)
 
-   o  byte 3 - SpreadingFactor (RegModemConfig 2)
-
-   o  byte 4-7 - random
-
-   Knock is a 1-byte transmission of the knock length, a wait for it to
-   be received/processed, then the payload.
-
-2.3.  MAC
-
-2.3.1.  Lost Mode
-
-   Each PHY documents a single lost-mode epoch header, no encryption and
-   only encodes a handshake with the recipient being the last 8 bytes of
-   the epoch id.
-
-2.4.  Mesh
-
-   Describe neighborhoods and routers, and routers performing ongoing
-   lost-mode duties.
-
-
+   o  byte 3 - Bw & CodingRate (RegModemConfig 1)
 
 
 
@@ -392,6 +392,69 @@ Miller                  Expires November 17, 2015               [Page 7]
 
 Internet-Draft                    tmesh                         May 2015
 
+
+   o  byte 4 - SpreadingFactor (RegModemConfig 2)
+
+   o  byte 5-7 - zeros (reserved)
+
+   All preambles are set to the minimum size of 6.
+
+   LoRa is used in implicit header mode with a fixed size of 64.
+
+   Freq Table:
+
+        +--------+-----+------+----------+-----------------+------+
+        | Region | Low | High | mW (erp) |       Reg       |  ID  |
+        +--------+-----+------+----------+-----------------+------+
+        |   US   | 902 |  928 |    100   | FCC part 15.247 | 0x01 |
+        |   EU   | 863 |  870 |          | ETSI EN 300-220 | 0x02 |
+        |  Japan | 915 |  930 |          |    ARIB T-108   | 0x03 |
+        |  China | 779 |  787 |    10    |       SRRC      | 0x04 |
+        +--------+-----+------+----------+-----------------+------+
+
+   Notes on ranges:
+
+   o  SRRC [2]
+
+   o  Z-Wave [3]
+
+   o  Atmel [4]
+
+2.2.4.  (O)QPSK
+
+   TBD
+
+2.3.  MAC
+
+2.3.1.  Lost Mode
+
+   Every mesh must define and share one or more "lost epochs" that are
+   used to send beacons for synchronization of any lost motes.
+
+   The lost epoch headers are combined with the first 8 bytes of each
+   mote's hashname to derive every mote-specific lost epoch.  When lost
+   or seeking a lost mote, a beacon with a minimum/zero length is
+   transmitted during the mesh lost epoch to signal the mote's timing
+   sync and current window (based on the frequency).
+
+   The mote's individual lost epoch must only be used to receive
+   handshakes that contain the unique link epochs available.
+
+   Motes may run multiple concurrent lost epochs to minimize the
+
+
+
+Miller                  Expires November 17, 2015               [Page 8]
+
+Internet-Draft                    tmesh                         May 2015
+
+
+   discovery time.
+
+2.4.  Mesh
+
+   Describe neighborhoods and routers, and routers performing ongoing
+   lost-mode duties.
 
 2.4.1.  z-index
 
@@ -404,22 +467,19 @@ Internet-Draft                    tmesh                         May 2015
    The mote with the highest "z-index" in any neighborhood is known as
    the "local leader".
 
+   The z-index also serves as a window mask for all of that mote's
+   receiving epoch windows by powers of two.
+
 2.5.  Notes
+
+   o  if a packet chunk is incomplete in one window, prioritize
+      subsequent windows from that mote
 
    o  send packet for a mote directly to it, and then fallback to one
       known neighbor, then to the local leader
 
    o  lost mode is when all link state is lost or all epochs expired,
-      local leaders must help by sending handshake knocks on a common
-      encoder-defined channel for them to resync
-
-      *  begin listening for any hard knock handshakes, generate link id
-         and sync to it then handshake there
-
-      *  if sleepy, only listen on the lost schedule
-
-      *  local leaders are required to hard knock per epoch on the lost
-         schedule
+      local leaders run the lost epochs and may coordinate to minimize
 
    o  resource based routing, highest resource gets undelivered packets
 
@@ -438,18 +498,28 @@ Internet-Draft                    tmesh                         May 2015
 4.  Security Considerations
 
 
-5.  References
-
-URIs
 
 
-
-Miller                  Expires November 17, 2015               [Page 8]
+Miller                  Expires November 17, 2015               [Page 9]
 
 Internet-Draft                    tmesh                         May 2015
 
 
+5.  References
+
+URIs
+
    [1]  <http://telehash.org>
+
+   [2]  <http://www.srrccn.org/srrc-approval-new2.htm>
+
+   [3]  <http://image.slidesharecdn.com/
+        smarthometechshort-13304126815608-phpapp01-120228010616-
+        phpapp01/95/smart-home-tech-short-14-728.jpg>
+
+   [4]  <http://blog.atmel.com/2013/04/23/
+        praise-the-lord-a-new-sub-1ghz-rf-transceiver-supporting-4-
+        major-regional-frequency-bands/>
 
 
 Appendix A.  Examples
@@ -486,19 +556,5 @@ Author's Address
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Miller                  Expires November 17, 2015               [Page 9]
+Miller                  Expires November 17, 2015              [Page 10]
 

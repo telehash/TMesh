@@ -42,27 +42,27 @@
 <middle>
 
 <section anchor="introduction" title="Introduction">
-<t>As embedded devices continue to increase in capabilities while falling in cost there is a growing challenge to manage their energy resources for wirelessly networking them together.  While there are many options for short-range 2.4GHz networks such as Bluetooth Smart (BLE), low-power WiFi, Zigbee and 802.15.4 based mesh networks, there are few choices for long-range sub-GHz networking.
+<t>As embedded devices continue to increase in capabilities while falling in cost there is a growing challenge to manage their energy resources for wirelessly networking them together.  While there are many options for short-range 2.4GHz networks such as Bluetooth Smart (BLE), low-power WiFi, Zigbee and 802.15.4 based mesh networks, there are few choices for long-range sub-GHz mesh networking.
 </t>
-<t>TMesh builds on the strong end-to-end encryption and privacy capabilities of [telehash v3] by adding a uniquely matched Physical RF and Media Access Control protocol.
+<t>TMesh builds on the strong end-to-end encryption and privacy capabilities of [telehash v3] by adding a uniquely matched secure Physical RF and Media Access Control protocol.
 </t>
 <t>The key attributes of TMesh are:
 </t>
 <t>
 <list style="symbols">
 <t>high density - thousands per square mile</t>
-<t>very low power - years on common batteries</t>
+<t>very low power - years on coin cell batteries</t>
 <t>wide area - optimized for long-range capable radios</t>
-<t>high lateny - low duty cycle, 10s of seconds of sleep</t>
-<t>peer aware meshing - does not require special purpose coordinator motes</t>
+<t>high lateny - low minimum duty cycle from seconds to minutes</t>
+<t>peer aware meshing - does not require dedicated coordinator motes</t>
 <t>high interference resiliency - bi-modal PHY to maximize connectivity in all conditions</t>
 <t>dynamically resource optimized - powered motes naturally provide more assistance</t>
-<t>no identity on the air - same absolute privacy and security principles as telehash</t>
+<t>zero metadata broadcast - same absolute privacy and security principles as telehash</t>
 </list>
 </t>
 
 <section anchor="the-need-for-standards" title="The Need for Standards">
-<t>The existing best choices are all either only partial solutions like 802.15.4, require membership to participate like LoRaWAN and ZigBee, or are focused on specific verticals like DASH7 and Wireless M-BUS.
+<t>The existing best choices are all either only partial solutions like 802.15.4, require membership to participate like LoRaWAN, ZigBee, and Z-Wave, or are focused on specific verticals like DASH7 and Wireless M-Bus.
 </t>
 <t>All other options only provide incomplete or indadequate security and privacy, most use only optional AES-128 and often with complicated or fixed provisioning-based key management.  No existing option attempts to protect the mote identity and network metadata from monitoring.
 </t>
@@ -75,9 +75,10 @@
 <list style="symbols">
 <t>each mote will have a unique stable 32-byte identity, the hashname</t>
 <t>two linked motes will have a unique long-lived session id, the routing token</t>
-<t>all payloads will be encrypted ciphertext</t>
+<t>all payloads will be encrypted ciphertext with forward secrecy</t>
 <t>retransmissions and acknowledgements happen at a higher level and are not required in the framing</t>
 <t>motes are members of a private mesh and only communicate with other verified members</t>
+<t>chunked encoding defines how to serialize variable length packets into fixed transmission frames</t>
 </list>
 </t>
 </section>
@@ -87,9 +88,9 @@
 <list style="symbols">
 <t><spanx style="verb">mote</spanx> - a single physical transmitting/receiving device</t>
 <t><spanx style="verb">knock</spanx> - a single transmission</t>
-<t><spanx style="verb">window</spanx> - the period for a knock</t>
+<t><spanx style="verb">window</spanx> - the period for a knock, 2^22 microseconds (~4.2 seconds)</t>
 <t><spanx style="verb">window sequence</spanx> - each window will change frequency/channels in a sequence</t>
-<t><spanx style="verb">epoch</spanx> - one entire set of window sequences</t>
+<t><spanx style="verb">epoch</spanx> - one entire set of window sequences, 256 windows / 2^30 microseconds (~18 minutes)</t>
 <t><spanx style="verb">neighborhood</spanx> - the list of known nearby motes</t>
 <t><spanx style="verb">z-index</spanx> - the self-asserted resource level (priority) from any mote</t>
 <t><spanx style="verb">leader</spanx> - the highest z-index visible in any mote's neighborhood</t>
@@ -101,28 +102,36 @@
 <section anchor="overview" title="Overview">
 <t>TMesh is the composite of three distinct layers, the physical radio medium encoding (PHY), the shared management of the spectrum (MAC), and the networking relationships between 2+ motes (Mesh).
 </t>
-<t>Common across all of these is the concept of an <spanx style="verb">epoch</spanx>, which is a fixed period of time of 2^30 microseconds (about 18 minutes).  An epoch is broken into 256 <spanx style="verb">windows</spanx> (about 4.2 seconds each) where one <spanx style="verb">knock</spanx> can occur from one mote to another with a specified PHY unique to that epoch.  A <spanx style="verb">knock</spanx> is the transmission of up to 128 bytes of encrypted payload, plus any PHY-specific overhead.
+<t>Common across all of these is the concept of an <spanx style="verb">epoch</spanx>, which is a fixed period of time of 2^30 microseconds.  An epoch is broken into 256 <spanx style="verb">windows</spanx> where one <spanx style="verb">knock</spanx> can occur from one mote to another with a specified PHY unique to that epoch.  A <spanx style="verb">knock</spanx> is the transmission of a 64 byte fixed frame of payload, plus any PHY-specific overhead (preamble).
 </t>
-<t>Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will often have multiple epochs with other motes to increase the bandwidth available from the minimum 1/4 kbps average per epoch.  The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost for its lifetime.
+<t>Each epoch is capable of a max throughput of 120bps, or a total of 16k over the full epoch period (about 18 minutes). Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will often have multiple epochs with other motes to increase the bandwidth available.
+</t>
+<t>The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost for its lifetime.
 </t>
 
 <section anchor="phy" title="PHY">
-<t>An <spanx style="verb">epoch</spanx> is defined with a unique 16-byte identifier, specifying the exact PHY encoding details and including random bytes that act as a unique seed for that epoch.
+<t>An <spanx style="verb">epoch</spanx> is defined with a unique 16-byte identifier, specifying the exact PHY encoding details and including random bytes that serve as a shared key for that epoch.
 </t>
-<t>The first byte is a fixed <spanx style="verb">type</spanx> that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed.
+<t>The first byte is a fixed <spanx style="verb">type</spanx> that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed body.
 </t>
-<t>The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, etc details on the transmission/reception, and must use the random seed to vary the transmission frequency and specific timing offset of each window in the epoch.
+<t>The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, the use of any FEC coding, etc details on the transmission/reception.  The PHY must use the entire epoch identifer including the random seed body and the current epoch counter to vary the transmission frequency and specific knock timing offset of each window in the epoch.
 </t>
-<t>Transmitted payloads do not need whitening as encrypted packets are by nature DC-free.  They also do not need CRC as all telehash packets have authentication bytes included.
+<t>Transmitted payloads do not need whitening as encrypted packets are by nature DC-free.  They also do not need CRC as all telehash packets have authentication bytes included for integrity verification.
 </t>
+<t>If the chunk-encoded encrypted payload does not fill the fixed 64 byte frame the remaining bytes must contain additional data so as to not reveal the payload size.
+</t>
+<t><list style="empty">
+<t>WIP - determine a standard filler data format that will add additional dynamically sized error correction, explore taking advantage of the fact that the inner and outer bitstreams are encrypted and bias-free (Gaussian distribution divergence?), the last byte should always duplicate the first/length to ensure differentiation between payload/filler
+</t>
+</list></t>
 </section>
 
 <section anchor="mac" title="MAC">
 <t>There is no mote addressing or other metadata included in the encoded bytes, no framing other than the length of the payload.  The uniqueness of the timing and signalling of each epoch is the mote addressing mechanism.
 </t>
-<t>The epoch 16 bytes are used as an AES-128 key, and the current count of windows since the first sync is used as the IV.  All payloads are encrypted before transmission even if they are already encrypted telehash packets.
+<t>The epoch 16 bytes are used as an AES-128 key, and the current count of total windows since the first sync is used as the IV.  All payloads are encrypted before transmission regardless of if they are already encrypted.
 </t>
-<t>Additional MAC-only packet types are defined for exchanging the current set of epochs active between any two motes.  An additional pre-set <spanx style="verb">lost</spanx> mode is defined for bootstrapping two motes from scratch or if they loose sync.
+<t>Additional MAC-only packet types are defined for exchanging the current set of epochs active between any two motes.  An additional pre-set <spanx style="verb">lost</spanx> mode is defined for bootstrapping motes from scratch or if they loose sync.
 </t>
 <t>Each mote should actively make use of multiple epochs with more efficient options to optimize the overall energy usage.  Every mote advertises their current energy resource level as a <spanx style="verb">z-index</spanx> as an additional mesh optimization strategy.
 </t>
@@ -160,6 +169,7 @@ and indicate requirement levels for compliant TMesh implementations.
 <c>0x01</c><c>OOK</c>
 <c>0x02</c><c>(G)FSK</c>
 <c>0x03</c><c>LoRa</c>
+<c>0x04</c><c>(O)QPSK</c>
 </texttable>
 
 <section anchor="ook" title="OOK">
@@ -177,13 +187,45 @@ and indicate requirement levels for compliant TMesh implementations.
 </t>
 <t>
 <list style="symbols">
-<t>byte 1 - dB power level &amp; frequency band selector (915, 868, 433, etc)</t>
-<t>byte 2 - Bw &amp; CodingRate (RegModemConfig 1)</t>
-<t>byte 3 - SpreadingFactor (RegModemConfig 2)</t>
-<t>byte 4-7 - random</t>
+<t>byte 1 - transmitting energy mA</t>
+<t>byte 2 - standard frequency range (see table)</t>
+<t>byte 3 - Bw &amp; CodingRate (RegModemConfig 1)</t>
+<t>byte 4 - SpreadingFactor (RegModemConfig 2)</t>
+<t>byte 5-7 - zeros (reserved)</t>
 </list>
 </t>
-<t>Knock is a 1-byte transmission of the knock length, a wait for it to be received/processed, then the payload.
+<t>All preambles are set to the minimum size of 6.
+</t>
+<t>LoRa is used in implicit header mode with a fixed size of 64.
+</t>
+<t>Freq Table:
+</t>
+<texttable>
+<ttcol align="center">Region</ttcol>
+<ttcol align="center">Low</ttcol>
+<ttcol align="center">High</ttcol>
+<ttcol align="center">mW (erp)</ttcol>
+<ttcol align="center">Reg</ttcol>
+<ttcol align="center">ID</ttcol>
+
+<c>US</c><c>902</c><c>928</c><c>100</c><c>FCC part 15.247</c><c>0x01</c>
+<c>EU</c><c>863</c><c>870</c><c></c><c>ETSI EN 300-220</c><c>0x02</c>
+<c>Japan</c><c>915</c><c>930</c><c></c><c>ARIB T-108</c><c>0x03</c>
+<c>China</c><c>779</c><c>787</c><c>10</c><c>SRRC</c><c>0x04</c>
+</texttable>
+<t>Notes on ranges:
+</t>
+<t>
+<list style="symbols">
+<t><eref target="http://www.srrccn.org/srrc-approval-new2.htm">SRRC</eref></t>
+<t><eref target="http://image.slidesharecdn.com/smarthometechshort-13304126815608-phpapp01-120228010616-phpapp01/95/smart-home-tech-short-14-728.jpg">Z-Wave</eref></t>
+<t><eref target="http://blog.atmel.com/2013/04/23/praise-the-lord-a-new-sub-1ghz-rf-transceiver-supporting-4-major-regional-frequency-bands/">Atmel</eref></t>
+</list>
+</t>
+</section>
+
+<section anchor="oqpsk" title="(O)QPSK">
+<t>TBD
 </t>
 </section>
 </section>
@@ -191,7 +233,13 @@ and indicate requirement levels for compliant TMesh implementations.
 <section anchor="mac-1" title="MAC">
 
 <section anchor="lost-mode" title="Lost Mode">
-<t>Each PHY documents a single lost-mode epoch header, no encryption and only encodes a handshake with the recipient being the last 8 bytes of the epoch id.
+<t>Every mesh must define and share one or more <spanx style="verb">lost epochs</spanx> that are used to send beacons for synchronization of any lost motes.
+</t>
+<t>The lost epoch headers are combined with the first 8 bytes of each mote's hashname to derive every mote-specific lost epoch.  When lost or seeking a lost mote, a beacon with a minimum/zero length is transmitted during the mesh lost epoch to signal the mote's timing sync and current window (based on the frequency).
+</t>
+<t>The mote's individual lost epoch must only be used to receive handshakes that contain the unique link epochs available.
+</t>
+<t>Motes may run multiple concurrent lost epochs to minimize the discovery time.
 </t>
 </section>
 </section>
@@ -205,19 +253,17 @@ and indicate requirement levels for compliant TMesh implementations.
 </t>
 <t>The mote with the highest <spanx style="verb">z-index</spanx> in any neighborhood is known as the <spanx style="verb">local leader</spanx>.
 </t>
+<t>The z-index also serves as a window mask for all of that mote's receiving epoch windows by powers of two.
+</t>
 </section>
 </section>
 
 <section anchor="notes" title="Notes">
 <t>
 <list style="symbols">
+<t>if a packet chunk is incomplete in one window, prioritize subsequent windows from that mote</t>
 <t>send packet for a mote directly to it, and then fallback to one known neighbor, then to the local leader</t>
-<t>lost mode is when all link state is lost or all epochs expired, local leaders must help by sending handshake knocks on a common encoder-defined channel for them to resync
-<list style="symbols">
-<t>begin listening for any hard knock handshakes, generate link id and sync to it then handshake there</t>
-<t>if sleepy, only listen on the lost schedule</t>
-<t>local leaders are required to hard knock per epoch on the lost schedule</t>
-</list></t>
+<t>lost mode is when all link state is lost or all epochs expired, local leaders run the lost epochs and may coordinate to minimize</t>
 <t>resource based routing, highest resource gets undelivered packets</t>
 <t>highest leader for the whole mesh is responsible for mapping the full mesh, collecting undelivered’s and re-routing them</t>
 <t>natural pooling around local resources, neighborhoods</t>
