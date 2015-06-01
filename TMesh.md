@@ -86,13 +86,15 @@ The number and types of epochs available depend entirely on the current energy b
 
 An `epoch` is defined with a unique 16-byte identifier, specifying the exact PHY encoding details and including random bytes that serve as a shared key for that epoch.
 
-The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed.
+The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed body.
 
-The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, etc details on the transmission/reception, and must use the random seed to vary the transmission frequency and specific knock timing offset of each window in the epoch.
+The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, the use of any FEC coding, etc details on the transmission/reception.  The PHY must use the entire epoch identifer including the random seed body and the current epoch counter to vary the transmission frequency and specific knock timing offset of each window in the epoch.
 
-Transmitted payloads do not need whitening as encrypted packets are by nature DC-free.  They also do not need CRC as all telehash packets have authentication bytes included.
+Transmitted payloads do not need whitening as encrypted packets are by nature DC-free.  They also do not need CRC as all telehash packets have authentication bytes included for integrity verification.
 
-If the chunk-encoded encrypted payload does not fill the fixed 64 byte frame the remaining bytes must contain additional error correcting data.
+If the chunk-encoded encrypted payload does not fill the fixed 64 byte frame the remaining bytes must contain additional data so as to not reveal the payload size.
+
+> WIP - determine a standard filler data format that will add additional dynamically sized error correction, explore taking advantage of the fact that the inner and outer bitstreams are encrypted and bias-free (Gaussian distribution divergence?), the last byte should always duplicate the first/length to ensure differentiation between payload/filler
 
 ### MAC
 
@@ -196,6 +198,8 @@ Describe neighborhoods and routers, and routers performing ongoing lost-mode dut
 Every mote calculates its own `z-index`, a uint8_t value that represents the resources it has available to assist with the mesh.  It will vary based on the battery level or fixed power, as well as if the mote has greater network access (is an internet bridge) or is well located (based on configuration).
 
 The mote with the highest `z-index` in any neighborhood is known as the `local leader`.
+
+The z-index also serves as a window mask for all of that mote's receiving epoch windows by powers of two.
 
 ## Notes
 
