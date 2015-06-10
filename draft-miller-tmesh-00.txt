@@ -79,8 +79,8 @@ Table of Contents
      2.4.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . . . .  9
        2.4.1.  z-index  . . . . . . . . . . . . . . . . . . . . . . .  9
      2.5.  Notes  . . . . . . . . . . . . . . . . . . . . . . . . . .  9
-   3.  Implementation Notes . . . . . . . . . . . . . . . . . . . . .  9
-   4.  Security Considerations  . . . . . . . . . . . . . . . . . . .  9
+   3.  Implementation Notes . . . . . . . . . . . . . . . . . . . . . 10
+   4.  Security Considerations  . . . . . . . . . . . . . . . . . . . 10
    5.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 10
    Appendix A.  Examples  . . . . . . . . . . . . . . . . . . . . . . 10
    Author's Address . . . . . . . . . . . . . . . . . . . . . . . . . 10
@@ -134,7 +134,7 @@ Internet-Draft                    tmesh                         May 2015
 
    o  wide area - optimized for long-range capable radios
 
-   o  high lateny - low minimum duty cycle from seconds to minutes
+   o  high latency - low minimum duty cycle from seconds to minutes
 
    o  peer aware meshing - does not require dedicated coordinator motes
 
@@ -267,12 +267,12 @@ Internet-Draft                    tmesh                         May 2015
    the transmission frequency and specific knock timing offset of each
    window in the epoch.
 
+   Regulatory restrictions around channel dwell time may require
+   additional frequency changes during one window as determined by each
+   specific PHY implementation.
+
    Transmitted payloads do not need whitening as encrypted packets are
    by nature DC-free.  They also do not need CRC as all telehash packets
-   have authentication bytes included for integrity verification.
-
-   If the chunk-encoded encrypted payload does not fill the fixed 64
-   byte frame the remaining bytes must contain additional data so as to
 
 
 
@@ -281,6 +281,10 @@ Miller                  Expires November 17, 2015               [Page 5]
 Internet-Draft                    tmesh                         May 2015
 
 
+   have authentication bytes included for integrity verification.
+
+   If the chunk-encoded encrypted payload does not fill the fixed 64
+   byte frame the remaining bytes must contain additional data so as to
    not reveal the payload size.
 
       WIP - determine a standard filler data format that will add
@@ -325,10 +329,6 @@ Internet-Draft                    tmesh                         May 2015
    neighborhood map shared from each mote includes a unique addressible
    epoch id, the epoch, microsecond offset, and signal strength.
 
-   A router is always the neighbor with the highest z-index, which
-   inherits the responsibility to monitor each neighbor's neighborhood
-   for other routers and establish direct or bridged links with them.
-   Any mote with a packet for a non-local hashname will send it to their
 
 
 
@@ -337,6 +337,10 @@ Miller                  Expires November 17, 2015               [Page 6]
 Internet-Draft                    tmesh                         May 2015
 
 
+   A router is always the neighbor with the highest z-index, which
+   inherits the responsibility to monitor each neighbor's neighborhood
+   for other routers and establish direct or bridged links with them.
+   Any mote with a packet for a non-local hashname will send it to their
    router, whom will send it to the next highest router it is connected
    to until it reaches the highest in the mesh.  The highest resourced
    router is responsible for maintaining an index of all available
@@ -379,11 +383,7 @@ Internet-Draft                    tmesh                         May 2015
 
    Epoch Header
 
-   o  byte 1 - transmitting energy mA
 
-   o  byte 2 - standard frequency range (see table)
-
-   o  byte 3 - Bw & CodingRate (RegModemConfig 1)
 
 
 
@@ -392,6 +392,12 @@ Miller                  Expires November 17, 2015               [Page 7]
 
 Internet-Draft                    tmesh                         May 2015
 
+
+   o  byte 1 - transmitting energy mA
+
+   o  byte 2 - standard frequency range (see table)
+
+   o  byte 3 - Bw & CodingRate (RegModemConfig 1)
 
    o  byte 4 - SpreadingFactor (RegModemConfig 2)
 
@@ -412,13 +418,18 @@ Internet-Draft                    tmesh                         May 2015
         |  China | 779 |  787 |    10    |       SRRC      | 0x04 |
         +--------+-----+------+----------+-----------------+------+
 
+   In the US region 0x01 to reach maximum transmit power each window may
+   transmit on a channel for more than 400ms, when that limit is reached
+   a new pseudo-random frequency must be derived from the Epoch and
+   hopped to.  See App Note [2].
+
    Notes on ranges:
 
-   o  SRRC [2]
+   o  SRRC [3]
 
-   o  Z-Wave [3]
+   o  Z-Wave [4]
 
-   o  Atmel [4]
+   o  Atmel [5]
 
 2.2.4.  (O)QPSK
 
@@ -431,6 +442,13 @@ Internet-Draft                    tmesh                         May 2015
    Every mesh must define and share one or more "lost epochs" that are
    used to send beacons for synchronization of any lost motes.
 
+
+
+Miller                  Expires November 17, 2015               [Page 8]
+
+Internet-Draft                    tmesh                         May 2015
+
+
    The lost epoch headers are combined with the first 8 bytes of each
    mote's hashname to derive every mote-specific lost epoch.  When lost
    or seeking a lost mote, a beacon with a minimum/zero length is
@@ -441,14 +459,6 @@ Internet-Draft                    tmesh                         May 2015
    handshakes that contain the unique link epochs available.
 
    Motes may run multiple concurrent lost epochs to minimize the
-
-
-
-Miller                  Expires November 17, 2015               [Page 8]
-
-Internet-Draft                    tmesh                         May 2015
-
-
    discovery time.
 
 2.4.  Mesh
@@ -486,6 +496,15 @@ Internet-Draft                    tmesh                         May 2015
    o  highest leader for the whole mesh is responsible for mapping the
       full mesh, collecting undelivered's and re-routing them
 
+
+
+
+
+Miller                  Expires November 17, 2015               [Page 9]
+
+Internet-Draft                    tmesh                         May 2015
+
+
    o  natural pooling around local resources, neighborhoods
 
    o  when you know a link's neighbors you can calculate their knock
@@ -498,26 +517,22 @@ Internet-Draft                    tmesh                         May 2015
 4.  Security Considerations
 
 
-
-
-Miller                  Expires November 17, 2015               [Page 9]
-
-Internet-Draft                    tmesh                         May 2015
-
-
 5.  References
 
 URIs
 
    [1]  <http://telehash.org>
 
-   [2]  <http://www.srrccn.org/srrc-approval-new2.htm>
+   [2]  <https://www.semtech.com/images/promo/
+        FCC_Part15_regulations_Semtech.pdf>
 
-   [3]  <http://image.slidesharecdn.com/
+   [3]  <http://www.srrccn.org/srrc-approval-new2.htm>
+
+   [4]  <http://image.slidesharecdn.com/
         smarthometechshort-13304126815608-phpapp01-120228010616-
         phpapp01/95/smart-home-tech-short-14-728.jpg>
 
-   [4]  <http://blog.atmel.com/2013/04/23/
+   [5]  <http://blog.atmel.com/2013/04/23/
         praise-the-lord-a-new-sub-1ghz-rf-transceiver-supporting-4-
         major-regional-frequency-bands/>
 
@@ -531,6 +546,19 @@ Appendix A.  Examples
 
                                    Response:
 
+
+
+
+
+
+
+
+
+
+
+Miller                  Expires November 17, 2015              [Page 10]
+
+Internet-Draft                    tmesh                         May 2015
 
 
 Author's Address
@@ -556,5 +584,33 @@ Author's Address
 
 
 
-Miller                  Expires November 17, 2015              [Page 10]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Miller                  Expires November 17, 2015              [Page 11]
 
