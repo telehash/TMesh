@@ -37,7 +37,7 @@ The key attributes of TMesh are:
   * high density - thousands per square mile
   * very low power - years on coin cell batteries
   * wide area - optimized for long-range capable radios
-  * high lateny - low minimum duty cycle from seconds to minutes
+  * high latency - low minimum duty cycle from seconds to minutes
   * peer aware meshing - does not require dedicated coordinator motes
   * high interference resiliency - bi-modal PHY to maximize connectivity in all conditions
   * dynamically resource optimized - powered motes naturally provide more assistance
@@ -89,6 +89,8 @@ An `epoch` is defined with a unique 16-byte identifier, specifying the exact PHY
 The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed body.
 
 The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, the use of any FEC coding, etc details on the transmission/reception.  The PHY must use the entire epoch identifer including the random seed body and the current epoch counter to vary the transmission frequency and specific knock timing offset of each window in the epoch.
+
+Regulatory restrictions around channel dwell time may require additional frequency changes during one window as determined by each specific PHY implementation.
 
 Transmitted payloads do not need whitening as encrypted packets are by nature DC-free.  They also do not need CRC as all telehash packets have authentication bytes included for integrity verification.
 
@@ -166,6 +168,8 @@ Freq Table:
 | EU     | 863 | 870  |          | ETSI EN 300-220 | 0x02 |
 | Japan  | 915 | 930  |          | ARIB T-108      | 0x03 |
 | China  | 779 | 787  | 10       | SRRC            | 0x04 |
+
+In the US region 0x01 to reach maximum transmit power each window may transmit on a channel for more than 400ms, when that limit is reached a new pseudo-random frequency must be derived from the Epoch and hopped to.  See [App Note](https://www.semtech.com/images/promo/FCC_Part15_regulations_Semtech.pdf).
 
 Notes on ranges:
 * [SRRC](http://www.srrccn.org/srrc-approval-new2.htm)
