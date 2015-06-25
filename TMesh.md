@@ -185,13 +185,23 @@ TBD
 
 ### Lost Mode
 
-Every mesh must define and share one or more `lost epochs` that are used to send beacons for synchronization of any lost motes.
+Every mesh must define and share one or more common `lost headers` that are used to generate `lost epochs` that assist with background synchronization of any lost motes.
 
-The lost epoch headers are combined with the first 8 bytes of each mote's hashname to derive every mote-specific lost epoch.  When lost or seeking a lost mote, a beacon with a minimum/zero length is transmitted during the mesh lost epoch to signal the mote's timing sync and current window (based on the frequency).
+The lost headers (8 bytes) are combined with the first 8 bytes of each mote's hashname to derive every mote-specific `lost epoch`.  These epochs are used for receive only, a mote can only listen and receive encrypted handshakes on their own unique lost epoch that provide new link epochs to synchronize with.
 
-The mote's individual lost epoch must only be used to receive handshakes that contain the unique link epochs available.
+The lost mode takes advantage of the fact that every epoch makes use of a shared medium that is divided into channels, such that every lost epoch will have some overlap with other private link epochs that a mote is transmitting on.  In order to minimize the time required to re-synchronize, only the first and second window sequence of the lost epoch are used.  When any mote sends any knock on the same channel as one of their lost epoch sequence 0, they should then attempt to receive a handshake knock at that lost epoch sequence 1.
 
-Motes may run multiple concurrent lost epochs to minimize the discovery time.
+The local leader should attempt to maximize their use of lost epoch overlapping channels to allow for fast resynchronization, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently. When a mote is lost, it should also send regular knocks on the lost epoch channels of nearby known motes.
+
+
+### Pairing Mode
+
+When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to signal the public key material for existing motes, a special temporary pairing mode may be enabled on an existing mote.  The un-linked mote must minimally have the lost headers to derive the pairing channel that will be used.
+
+When pairing mode is enabled on an existing mote in the mesh, it will build a `pairing epoch` by combining the lost epoch with 8 zero bytes, and send a special pair knock on that epoch's window sequence 0.  The pair knock must contain the senders public key so that the un-linked mote can generate an encrypted handshake.  The special pair knock also serves as a lost knock time base allowing the recipient to derive the unique lost epoch for the sender and immediately send a handshake back to establish a link.
+
+This functionality should not exist or be enabled/deployed by default, it should only be included when management policy explicitly requires it for special use cases.
+
 
 ## Mesh
 
