@@ -66,7 +66,7 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 * `knock` - a single transmission
 * `window` - the period for a knock, 2^22 microseconds (~4.2 seconds)
 * `window sequence` - each window will change frequency/channels in a sequence
-* `epoch` - one entire set of window sequences, 256 windows / 2^30 microseconds (~18 minutes)
+* `epoch` - one unique set of window sequences
 * `neighborhood` - the list of known nearby motes
 * `z-index` - the self-asserted resource level (priority) from any mote
 * `leader` - the highest z-index visible in any mote's neighborhood
@@ -76,9 +76,9 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 
 TMesh is the composite of three distinct layers, the physical radio medium encoding (PHY), the shared management of the spectrum (MAC), and the networking relationships between 2+ motes (Mesh).
 
-Common across all of these is the concept of an `epoch`, which is a fixed period of time of 2^30 microseconds.  An epoch is broken into 256 `windows` where one `knock` can occur from one mote to another with a specified PHY unique to that epoch.  A `knock` is the transmission of a 64 byte fixed frame of payload, plus any PHY-specific overhead (preamble).
+Common across all of these is the concept of an `epoch`, which is a generated set of unique window sequences shared between two motes.  A `window` is where one `knock` can occur from one mote to another with a specified PHY unique to that window and epoch.  A `knock` is the transmission of a 64 byte fixed frame of payload, plus any PHY-specific overhead (preamble).
 
-Each epoch is capable of a max throughput of 120bps, or a total of 16k over the full epoch period (about 18 minutes). Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will often have multiple epochs with other motes to increase the bandwidth available.
+Each epoch is the smallest divisible unit of bandwidth and is only capable of a max throughput of 120 bits per second average, approximately 1 kilobyte per minute. Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will often have multiple epochs with other motes to increase the overall bandwidth available.
 
 The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost for its lifetime.
 
