@@ -76,7 +76,7 @@ Table of Contents
        2.2.4.  (O)QPSK  . . . . . . . . . . . . . . . . . . . . . . .  8
      2.3.  MAC  . . . . . . . . . . . . . . . . . . . . . . . . . . .  8
        2.3.1.  Lost Mode  . . . . . . . . . . . . . . . . . . . . . .  8
-       2.3.2.  Pairing Mode . . . . . . . . . . . . . . . . . . . . .  9
+       2.3.2.  Discovery Mode . . . . . . . . . . . . . . . . . . . .  9
      2.4.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . . . .  9
        2.4.1.  z-index  . . . . . . . . . . . . . . . . . . . . . . . 10
      2.5.  Notes  . . . . . . . . . . . . . . . . . . . . . . . . . . 10
@@ -472,26 +472,26 @@ Internet-Draft                    tmesh                         May 2015
    has been transmitted recently.  When a mote is lost, it should also
    send regular knocks on the lost epoch channels of nearby known motes.
 
-2.3.2.  Pairing Mode
+2.3.2.  Discovery Mode
 
    When a new un-linked mote must be introduced directly into a mesh and
    there is no out-of-band mechanism to signal the public key material
-   for existing motes, a special temporary pairing mode may be enabled
-   on an existing mote.  The un-linked mote must minimally have the lost
-   headers to derive the pairing channel that will be used.
+   for existing motes, the special temporary discovery mode may be
+   enabled on any existing mote.  The un-linked mote must minimally have
+   the lost headers to derive the discovery channel that will be used.
 
-   When pairing mode is enabled on an existing mote in the mesh, it will
-   build a "pairing epoch" by combining the lost epoch with 8 zero
-   bytes, and send a special pair knock on that epoch's window sequence
-   0.  The pair knock must contain the senders public key so that the
-   un-linked mote can generate an encrypted handshake.  The special pair
-   knock also serves as a lost knock time base allowing the recipient to
-   derive the unique lost epoch for the sender and immediately send a
-   handshake back to establish a link.
+   When discovery mode is enabled on an existing mote in the mesh, it
+   will build a "discovery epoch" by combining the lost epoch with 8
+   zero bytes, and send a special discovery knock on that epoch's window
+   sequence 0.  The discovery knock must contain the senders public key
+   so that the un-linked mote can generate an encrypted handshake.  The
+   special discovery knock also serves as a lost knock time base
+   allowing the recipient to derive the unique lost epoch for the sender
+   and immediately send a handshake back to establish a link.
 
    This functionality should not exist or be enabled/deployed by
    default, it should only be included when management policy explicitly
-   requires it for special use cases.
+   requires it for special or public use cases.
 
 2.4.  Mesh
 

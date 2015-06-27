@@ -247,12 +247,12 @@ and indicate requirement levels for compliant TMesh implementations.
 </t>
 </section>
 
-<section anchor="pairing-mode" title="Pairing Mode">
-<t>When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to signal the public key material for existing motes, a special temporary pairing mode may be enabled on an existing mote.  The un-linked mote must minimally have the lost headers to derive the pairing channel that will be used.
+<section anchor="discovery-mode" title="Discovery Mode">
+<t>When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to signal the public key material for existing motes, the special temporary discovery mode may be enabled on any existing mote.  The un-linked mote must minimally have the lost headers to derive the discovery channel that will be used.
 </t>
-<t>When pairing mode is enabled on an existing mote in the mesh, it will build a <spanx style="verb">pairing epoch</spanx> by combining the lost epoch with 8 zero bytes, and send a special pair knock on that epoch's window sequence 0.  The pair knock must contain the senders public key so that the un-linked mote can generate an encrypted handshake.  The special pair knock also serves as a lost knock time base allowing the recipient to derive the unique lost epoch for the sender and immediately send a handshake back to establish a link.
+<t>When discovery mode is enabled on an existing mote in the mesh, it will build a <spanx style="verb">discovery epoch</spanx> by combining the lost epoch with 8 zero bytes, and send a special discovery knock on that epoch's window sequence 0.  The discovery knock must contain the senders public key so that the un-linked mote can generate an encrypted handshake.  The special discovery knock also serves as a lost knock time base allowing the recipient to derive the unique lost epoch for the sender and immediately send a handshake back to establish a link.
 </t>
-<t>This functionality should not exist or be enabled/deployed by default, it should only be included when management policy explicitly requires it for special use cases.
+<t>This functionality should not exist or be enabled/deployed by default, it should only be included when management policy explicitly requires it for special or public use cases.
 </t>
 </section>
 </section>
