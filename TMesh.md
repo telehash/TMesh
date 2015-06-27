@@ -194,13 +194,13 @@ The lost mode takes advantage of the fact that every epoch makes use of a shared
 The local leader should attempt to maximize their use of lost epoch overlapping channels to allow for fast resynchronization, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently. When a mote is lost, it should also send regular knocks on the lost epoch channels of nearby known motes.
 
 
-### Pairing Mode
+### Discovery Mode
 
-When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to signal the public key material for existing motes, a special temporary pairing mode may be enabled on an existing mote.  The un-linked mote must minimally have the lost headers to derive the pairing channel that will be used.
+When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to signal the public key material for existing motes, the special temporary discovery mode may be enabled on any existing mote.  The un-linked mote must minimally have the lost headers to derive the discovery channel that will be used.
 
-When pairing mode is enabled on an existing mote in the mesh, it will build a `pairing epoch` by combining the lost epoch with 8 zero bytes, and send a special pair knock on that epoch's window sequence 0.  The pair knock must contain the senders public key so that the un-linked mote can generate an encrypted handshake.  The special pair knock also serves as a lost knock time base allowing the recipient to derive the unique lost epoch for the sender and immediately send a handshake back to establish a link.
+When discovery mode is enabled on an existing mote in the mesh, it will build a `discovery epoch` by combining the lost epoch with 8 zero bytes, and send a special discovery knock on that epoch's window sequence 0.  The discovery knock must contain the senders public key so that the un-linked mote can generate an encrypted handshake.  The special discovery knock also serves as a lost knock time base allowing the recipient to derive the unique lost epoch for the sender and immediately send a handshake back to establish a link.
 
-This functionality should not exist or be enabled/deployed by default, it should only be included when management policy explicitly requires it for special use cases.
+This functionality should not exist or be enabled/deployed by default, it should only be included when management policy explicitly requires it for special or public use cases.
 
 
 ## Mesh
