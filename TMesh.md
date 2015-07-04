@@ -66,11 +66,10 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 * `knock` - a single transmission
 * `window` - the period for a knock, 2^22 microseconds (~4.2 seconds)
 * `window sequence` - each window will change frequency/channels in a sequence
-* `epoch` - one unique set of window sequences
+* `epoch` - one unique set of window sequences, derived from an 8 byte header and 8 random bytes
 * `neighborhood` - the list of known nearby motes
 * `z-index` - the self-asserted resource level (priority) from any mote
 * `leader` - the highest z-index visible in any mote's neighborhood
-* `lost` - when a mote hasn't knocked in one epoch or is reset
 
 ## Overview
 
@@ -88,7 +87,7 @@ An `epoch` is defined with a unique 16-byte identifier, specifying the exact PHY
 
 The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed body.
 
-The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, the use of any FEC coding, etc details on the transmission/reception.  The PHY must use the entire epoch identifer including the random seed body and the current epoch counter to vary the transmission frequency and specific knock timing offset of each window in the epoch.
+The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, the use of any FEC coding, etc details on the transmission/reception.  The PHY must use the entire epoch identifer including the random seed body and the current epoch counter to vary the transmission frequency and specific knock timing offset of each window in the epoch.  (note: define the standard way of determining this, likely using AES-128 hardware w/ the epoch as the key and window as the sequence to encrypt a common base to derive shared source bits)
 
 Regulatory restrictions around channel dwell time may require additional frequency changes during one window as determined by each specific PHY implementation.
 
@@ -102,9 +101,9 @@ If the chunk-encoded encrypted payload does not fill the fixed 64 byte frame the
 
 There is no mote addressing or other metadata included in the encoded bytes, no framing other than the length of the payload.  The uniqueness of the timing and signalling of each epoch is the mote addressing mechanism.
 
-The epoch 16 bytes are used as an AES-128 key, and the current count of total windows since the first sync is used as the IV.  All payloads are encrypted before transmission regardless of if they are already encrypted.
+One epoch is also a private encrypted session between the two motes, where the epoch's 16 bytes are first SHA-256 hashed and the resulting 32 byte digest is appended with the current link routing token and then SHA-256 hashed again.  The resulting digest is then used as the AES-128 key and the current count of total windows since the first sync is used as the IV.  All payloads are encrypted before transmission regardless of if they are already encrypted.
 
-Additional MAC-only packet types are defined for exchanging the current set of epochs active between any two motes.  An additional pre-set `lost` mode is defined for bootstrapping motes from scratch or if they loose sync.
+Additional MAC-only packet types are defined for exchanging the current set of epochs active between any two motes.  An additional pre-set `sync` mode is defined for bootstrapping motes from scratch or if they loose sync.
 
 Each mote should actively make use of multiple epochs with more efficient options to optimize the overall energy usage.  Every mote advertises their current energy resource level as a `z-index` as an additional mesh optimization strategy.
 
@@ -183,29 +182,29 @@ TBD
 
 ## MAC
 
-### Lost Mode
+### Sync Mode
 
-Every mesh must define and share one or more common `lost headers` that are used to generate `lost epochs` that assist with background synchronization of any lost motes.
+Every mesh must define and share one or more common `sync headers` that are used to generate `sync epochs` that assist with background synchronization of any disconnected motes.
 
-The lost headers (8 bytes) are combined with the first 8 bytes of each mote's hashname to derive every mote-specific `lost epoch`.  These epochs are used for receive only, a mote can only listen and receive encrypted handshakes on their own unique lost epoch that provide new link epochs to synchronize with.
+The sync headers (8 bytes) are combined with the first 8 bytes of each mote's hashname to derive every mote-specific `sync epoch`.  These epochs are used for receive only, a mote can only listen and receive encrypted handshakes on their own unique sync epoch that provide new link epochs to synchronize with.
 
-The lost mode takes advantage of the fact that every epoch makes use of a shared medium that is divided into channels, such that every lost epoch will have some overlap with other private link epochs that a mote is transmitting on.  In order to minimize the time required to re-synchronize, only the first and second window sequence of the lost epoch are used.  When any mote sends any knock on the same channel as one of their lost epoch sequence 0, they should then attempt to receive a handshake knock at that lost epoch sequence 1.
+The sync mode takes advantage of the fact that every epoch makes use of a shared medium that is divided into channels, such that every sync epoch will have some overlap with other private link epochs that a mote is transmitting on.  In order to minimize the time required to re-synchronize, only the first and second window sequence of the sync epoch are used.  When any mote sends any knock on the same channel as one of their sync epoch's sequence 0, they should then attempt to receive a handshake knock at that sync epoch sequence 1.
 
-The local leader should attempt to maximize their use of lost epoch overlapping channels to allow for fast resynchronization, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently. When a mote is lost, it should also send regular knocks on the lost epoch channels of nearby known motes.
+The local leader should attempt to maximize their use of sync epoch overlapping channels to allow for fast resynchronization, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently. When a mote detects that it is disconnected, it should also send regular knocks on the sync epoch channels of nearby known motes.
 
 
 ### Discovery Mode
 
-When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to signal the public key material for existing motes, the special temporary discovery mode may be enabled on any existing mote.  The un-linked mote must minimally have the lost headers to derive the discovery channel that will be used.
+When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to signal the public key material for existing motes, the special temporary discovery mode may be enabled on any existing mote.  The un-linked mote must minimally have the sync headers to derive the discovery channel that will be used.
 
-When discovery mode is enabled on an existing mote in the mesh, it will build a `discovery epoch` by combining the lost epoch with 8 zero bytes, and send a special discovery knock on that epoch's window sequence 0.  The discovery knock must contain the senders public key so that the un-linked mote can generate an encrypted handshake.  The special discovery knock also serves as a lost knock time base allowing the recipient to derive the unique lost epoch for the sender and immediately send a handshake back to establish a link.
+When discovery mode is enabled on an existing mote in the mesh, it will build a `discovery epoch` by combining the sync epoch with 8 zero bytes, and send a special discovery knock on that epoch's window sequence 0.  The discovery knock must contain the senders public key so that the un-linked mote can generate an encrypted handshake.  The special discovery knock also serves as a sync knock time base allowing the recipient to derive the unique sync epoch for the sender and immediately send a handshake back to establish a link.
 
 This functionality should not exist or be enabled/deployed by default, it should only be included when management policy explicitly requires it for special or public use cases.
 
 
 ## Mesh
 
-Describe neighborhoods and routers, and routers performing ongoing lost-mode duties.
+Describe neighborhoods and routers, and routers performing ongoing sync-mode duties.
 
 ### z-index
 
@@ -219,7 +218,7 @@ The z-index also serves as a window mask for all of that mote's receiving epoch 
 
 * if a packet chunk is incomplete in one window, prioritize subsequent windows from that mote
 * send packet for a mote directly to it, and then fallback to one known neighbor, then to the local leader
-* lost mode is when all link state is lost or all epochs expired, local leaders run the lost epochs and may coordinate to minimize
+* sync mode is when all link state is lost or all epochs expired, local leaders run the sync epochs and may coordinate to minimize
 * resource based routing, highest resource gets undelivered packets
 * highest leader for the whole mesh is responsible for mapping the full mesh, collecting undelivered’s and re-routing them
 * natural pooling around local resources, neighborhoods
