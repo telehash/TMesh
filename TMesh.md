@@ -28,6 +28,8 @@ A secure PHY/MAC based on [telehash][] designed for low-power sleepy devices.
 
 # Introduction
 
+> this is a work in progress and under active development, expect significant breaking changes
+
 As embedded devices continue to increase in capabilities while falling in cost there is a growing challenge to manage their energy resources for wirelessly networking them together.  While there are many options for short-range 2.4GHz networks such as Bluetooth Smart (BLE), low-power WiFi, Zigbee and 802.15.4 based mesh networks, there are few choices for long-range sub-GHz mesh networking.
 
 TMesh builds on the strong end-to-end encryption and privacy capabilities of [telehash v3] by adding a uniquely matched secure Physical RF and Media Access Control protocol.
