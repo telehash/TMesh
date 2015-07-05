@@ -63,7 +63,7 @@ Table of Contents
      1.1.  The Need for Standards . . . . . . . . . . . . . . . . . .  3
      1.2.  Telehash Native  . . . . . . . . . . . . . . . . . . . . .  4
      1.3.  Vocabulary . . . . . . . . . . . . . . . . . . . . . . . .  4
-     1.4.  Overview . . . . . . . . . . . . . . . . . . . . . . . . .  5
+     1.4.  Overview . . . . . . . . . . . . . . . . . . . . . . . . .  4
        1.4.1.  PHY  . . . . . . . . . . . . . . . . . . . . . . . . .  5
        1.4.2.  MAC  . . . . . . . . . . . . . . . . . . . . . . . . .  6
        1.4.3.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . .  6
@@ -75,14 +75,14 @@ Table of Contents
        2.2.3.  LoRa . . . . . . . . . . . . . . . . . . . . . . . . .  7
        2.2.4.  (O)QPSK  . . . . . . . . . . . . . . . . . . . . . . .  8
      2.3.  MAC  . . . . . . . . . . . . . . . . . . . . . . . . . . .  8
-       2.3.1.  Lost Mode  . . . . . . . . . . . . . . . . . . . . . .  8
+       2.3.1.  Sync Mode  . . . . . . . . . . . . . . . . . . . . . .  8
        2.3.2.  Discovery Mode . . . . . . . . . . . . . . . . . . . .  9
-     2.4.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . . . .  9
+     2.4.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . . . . 10
        2.4.1.  z-index  . . . . . . . . . . . . . . . . . . . . . . . 10
      2.5.  Notes  . . . . . . . . . . . . . . . . . . . . . . . . . . 10
    3.  Implementation Notes . . . . . . . . . . . . . . . . . . . . . 10
    4.  Security Considerations  . . . . . . . . . . . . . . . . . . . 10
-   5.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 10
+   5.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 11
    Appendix A.  Examples  . . . . . . . . . . . . . . . . . . . . . . 11
    Author's Address . . . . . . . . . . . . . . . . . . . . . . . . . 11
 
@@ -114,6 +114,9 @@ Internet-Draft                    tmesh                         May 2015
 
 
 1.  Introduction
+
+      this is a work in progress and under active development, expect
+      significant breaking changes
 
    As embedded devices continue to increase in capabilities while
    falling in cost there is a growing challenge to manage their energy
@@ -161,9 +164,6 @@ Internet-Draft                    tmesh                         May 2015
 
 
 
-
-
-
 Miller                  Expires November 17, 2015               [Page 3]
 
 Internet-Draft                    tmesh                         May 2015
@@ -202,7 +202,8 @@ Internet-Draft                    tmesh                         May 2015
    o  "window sequence" - each window will change frequency/channels in
       a sequence
 
-   o  "epoch" - one unique set of window sequences
+   o  "epoch" - one unique set of window sequences, derived from an 8
+      byte header and 8 random bytes
 
    o  "neighborhood" - the list of known nearby motes
 
@@ -211,12 +212,11 @@ Internet-Draft                    tmesh                         May 2015
 
    o  "leader" - the highest z-index visible in any mote's neighborhood
 
-   o  "lost" - when a mote hasn't knocked in one epoch or is reset
+1.4.  Overview
 
-
-
-
-
+   TMesh is the composite of three distinct layers, the physical radio
+   medium encoding (PHY), the shared management of the spectrum (MAC),
+   and the networking relationships between 2+ motes (Mesh).
 
 
 
@@ -224,12 +224,6 @@ Miller                  Expires November 17, 2015               [Page 4]
 
 Internet-Draft                    tmesh                         May 2015
 
-
-1.4.  Overview
-
-   TMesh is the composite of three distinct layers, the physical radio
-   medium encoding (PHY), the shared management of the spectrum (MAC),
-   and the networking relationships between 2+ motes (Mesh).
 
    Common across all of these is the concept of an "epoch", which is a
    generated set of unique window sequences shared between two motes.  A
@@ -266,13 +260,19 @@ Internet-Draft                    tmesh                         May 2015
    transmission/reception.  The PHY must use the entire epoch identifer
    including the random seed body and the current epoch counter to vary
    the transmission frequency and specific knock timing offset of each
-   window in the epoch.
+   window in the epoch. (note: define the standard way of determining
+   this, likely using AES-128 hardware w/ the epoch as the key and
+   window as the sequence to encrypt a common base to derive shared
+   source bits)
 
    Regulatory restrictions around channel dwell time may require
    additional frequency changes during one window as determined by each
    specific PHY implementation.
 
    Transmitted payloads do not need whitening as encrypted packets are
+   by nature DC-free.  They also do not need CRC as all telehash packets
+   have authentication bytes included for integrity verification.
+
 
 
 
@@ -280,9 +280,6 @@ Miller                  Expires November 17, 2015               [Page 5]
 
 Internet-Draft                    tmesh                         May 2015
 
-
-   by nature DC-free.  They also do not need CRC as all telehash packets
-   have authentication bytes included for integrity verification.
 
    If the chunk-encoded encrypted payload does not fill the fixed 64
    byte frame the remaining bytes must contain additional data so as to
@@ -302,14 +299,17 @@ Internet-Draft                    tmesh                         May 2015
    uniqueness of the timing and signalling of each epoch is the mote
    addressing mechanism.
 
-   The epoch 16 bytes are used as an AES-128 key, and the current count
-   of total windows since the first sync is used as the IV.  All
-   payloads are encrypted before transmission regardless of if they are
-   already encrypted.
+   One epoch is also a private encrypted session between the two motes,
+   where the epoch's 16 bytes are first SHA-256 hashed and the resulting
+   32 byte digest is appended with the current link routing token and
+   then SHA-256 hashed again.  The resulting digest is then used as the
+   AES-128 key and the current count of total windows since the first
+   sync is used as the IV.  All payloads are encrypted before
+   transmission regardless of if they are already encrypted.
 
    Additional MAC-only packet types are defined for exchanging the
    current set of epochs active between any two motes.  An additional
-   pre-set "lost" mode is defined for bootstrapping motes from scratch
+   pre-set "sync" mode is defined for bootstrapping motes from scratch
    or if they loose sync.
 
    Each mote should actively make use of multiple epochs with more
@@ -437,10 +437,10 @@ Internet-Draft                    tmesh                         May 2015
 
 2.3.  MAC
 
-2.3.1.  Lost Mode
+2.3.1.  Sync Mode
 
-   Every mesh must define and share one or more common "lost headers"
-   that are used to generate "lost epochs" that assist with background
+   Every mesh must define and share one or more common "sync headers"
+   that are used to generate "sync epochs" that assist with background
 
 
 
@@ -449,28 +449,29 @@ Miller                  Expires November 17, 2015               [Page 8]
 Internet-Draft                    tmesh                         May 2015
 
 
-   synchronization of any lost motes.
+   synchronization of any disconnected motes.
 
-   The lost headers (8 bytes) are combined with the first 8 bytes of
-   each mote's hashname to derive every mote-specific "lost epoch".
+   The sync headers (8 bytes) are combined with the first 8 bytes of
+   each mote's hashname to derive every mote-specific "sync epoch".
    These epochs are used for receive only, a mote can only listen and
-   receive encrypted handshakes on their own unique lost epoch that
+   receive encrypted handshakes on their own unique sync epoch that
    provide new link epochs to synchronize with.
 
-   The lost mode takes advantage of the fact that every epoch makes use
+   The sync mode takes advantage of the fact that every epoch makes use
    of a shared medium that is divided into channels, such that every
-   lost epoch will have some overlap with other private link epochs that
+   sync epoch will have some overlap with other private link epochs that
    a mote is transmitting on.  In order to minimize the time required to
-   re-synchronize, only the first and second window sequence of the lost
+   re-synchronize, only the first and second window sequence of the sync
    epoch are used.  When any mote sends any knock on the same channel as
-   one of their lost epoch sequence 0, they should then attempt to
-   receive a handshake knock at that lost epoch sequence 1.
+   one of their sync epoch's sequence 0, they should then attempt to
+   receive a handshake knock at that sync epoch sequence 1.
 
-   The local leader should attempt to maximize their use of lost epoch
+   The local leader should attempt to maximize their use of sync epoch
    overlapping channels to allow for fast resynchronization, even to the
    point of sending arbitrary/random knocks on that channel if nothing
-   has been transmitted recently.  When a mote is lost, it should also
-   send regular knocks on the lost epoch channels of nearby known motes.
+   has been transmitted recently.  When a mote detects that it is
+   disconnected, it should also send regular knocks on the sync epoch
+   channels of nearby known motes.
 
 2.3.2.  Discovery Mode
 
@@ -478,25 +479,24 @@ Internet-Draft                    tmesh                         May 2015
    there is no out-of-band mechanism to signal the public key material
    for existing motes, the special temporary discovery mode may be
    enabled on any existing mote.  The un-linked mote must minimally have
-   the lost headers to derive the discovery channel that will be used.
+   the sync headers to derive the discovery channel that will be used.
 
    When discovery mode is enabled on an existing mote in the mesh, it
-   will build a "discovery epoch" by combining the lost epoch with 8
+   will build a "discovery epoch" by combining the sync epoch with 8
    zero bytes, and send a special discovery knock on that epoch's window
    sequence 0.  The discovery knock must contain the senders public key
    so that the un-linked mote can generate an encrypted handshake.  The
-   special discovery knock also serves as a lost knock time base
-   allowing the recipient to derive the unique lost epoch for the sender
+   special discovery knock also serves as a sync knock time base
+   allowing the recipient to derive the unique sync epoch for the sender
    and immediately send a handshake back to establish a link.
 
    This functionality should not exist or be enabled/deployed by
    default, it should only be included when management policy explicitly
    requires it for special or public use cases.
 
-2.4.  Mesh
 
-   Describe neighborhoods and routers, and routers performing ongoing
-   lost-mode duties.
+
+
 
 
 
@@ -504,6 +504,11 @@ Miller                  Expires November 17, 2015               [Page 9]
 
 Internet-Draft                    tmesh                         May 2015
 
+
+2.4.  Mesh
+
+   Describe neighborhoods and routers, and routers performing ongoing
+   sync-mode duties.
 
 2.4.1.  z-index
 
@@ -527,8 +532,8 @@ Internet-Draft                    tmesh                         May 2015
    o  send packet for a mote directly to it, and then fallback to one
       known neighbor, then to the local leader
 
-   o  lost mode is when all link state is lost or all epochs expired,
-      local leaders run the lost epochs and may coordinate to minimize
+   o  sync mode is when all link state is lost or all epochs expired,
+      local leaders run the sync epochs and may coordinate to minimize
 
    o  resource based routing, highest resource gets undelivered packets
 
@@ -549,17 +554,16 @@ Internet-Draft                    tmesh                         May 2015
 
 5.  References
 
-URIs
-
-   [1]  <http://telehash.org>
-
-
 
 
 Miller                  Expires November 17, 2015              [Page 10]
 
 Internet-Draft                    tmesh                         May 2015
 
+
+URIs
+
+   [1]  <http://telehash.org>
 
    [2]  <https://www.semtech.com/images/promo/
         FCC_Part15_regulations_Semtech.pdf>
@@ -595,10 +599,6 @@ Author's Address
 
    Email: jeremie@jabber.org
    URI:
-
-
-
-
 
 
 
