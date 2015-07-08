@@ -478,23 +478,23 @@ Internet-Draft                    tmesh                         May 2015
    When a new un-linked mote must be introduced directly into a mesh and
    there is no out-of-band mechanism to signal the public key material
    for existing motes, the special temporary discovery mode may be
-   enabled on any existing mote.  The un-linked mote must minimally have
-   the sync headers to derive the discovery channel that will be used.
+   enabled on any existing mote.  Both motes must have the same shared
+   discovery epoch to derive the channel that will be used.
 
-   When discovery mode is enabled on an existing mote in the mesh, it
-   will build a "discovery epoch" by combining the sync epoch with 8
-   zero bytes, and send a special discovery knock on that epoch's window
-   sequence 0.  The discovery knock must contain the senders public key
-   so that the un-linked mote can generate an encrypted handshake.  The
-   special discovery knock also serves as a sync knock time base
-   allowing the recipient to derive the unique sync epoch for the sender
-   and immediately send a handshake back to establish a link.
+   When discovery mode is enabled on an existing mote in the mesh it
+   requires knowing at least one "discovery epoch" where the last byte
+   is the Cipher Set ID to be used.  A special discovery knock is
+   generated containing the mote's hashname key in intermediate form for
+   that CS.  The discovery knock is then sent on that epoch's window
+   sequence 0 so that the un-linked mote can generate an encrypted
+   handshake based on the incoming key.  The special discovery knock
+   also serves as a knock time-base at sequence 0 allowing the recipient
+   to transmit a response full handshake at sequence 1 to establish a
+   link.
 
-   This functionality should not exist or be enabled/deployed by
-   default, it should only be included when management policy explicitly
-   requires it for special or public use cases.
-
-
+   This functionality should not be enabled/deployed by default, it
+   should only be used when management policy explicitly requires it for
+   special/public use cases or temporary pairing/provisioning setup.
 
 
 
