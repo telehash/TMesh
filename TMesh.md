@@ -87,7 +87,7 @@ The number and types of epochs available depend entirely on the current energy b
 
 An `epoch` is defined with a unique 16-byte identifier, specifying the exact PHY encoding details and including random bytes that serve as a shared key for that epoch.
 
-The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed footer.
+The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed footer that is often composed by combining two sources of random bytes in different orders (A+B=tx, B+A=rx).
 
 The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, the use of any FEC coding, etc details on the transmission/reception.  The PHY must use the entire epoch identifer including the random seed body and the current epoch counter to vary the transmission frequency and specific knock timing offset of each window in the epoch.  (note: define the standard way of determining this, likely using AES-128 hardware w/ the epoch as the key and window as the sequence to encrypt a common base to derive shared source bits)
 
@@ -202,20 +202,60 @@ There are currently three different types of epochs defined:
 
 ### `SYNC` Epochs
 
-Every mesh must define and share one or more common `sync headers` that are used to generate `sync epochs` that assist with background synchronization of any disconnected motes.
+The synchronization process requires a shared or commonly configured source of epoch IDs or out of band mechanism for exchanging them dynamically.  A `SYNC` epoch only assists with background synchronization and establishment of a dynamic `INIT` epoch for the handshaking process.
 
-The sync headers (8 bytes) are combined with the first 8 bytes of each mote's hashname to derive every mote-specific `sync epoch`.  These epochs are used for receive only, a mote can only listen and receive encrypted handshakes on their own unique sync epoch that provide new link epochs to synchronize with.
+With every sync knock one or more motes may be receiving and transmitting at the same time on the same epoch increasing the risk of interference so they are only used as strictly necessary and as infrequently as possible.
 
-The sync mode takes advantage of the fact that every epoch makes use of a shared medium that is divided into channels, such that every sync epoch will have some overlap with other private link epochs that a mote is transmitting on.  In order to minimize the time required to re-synchronize, only the first and second window sequence of the sync epoch are used.  When any mote sends any knock on the same channel as one of their sync epoch's sequence 0, they should then attempt to receive a handshake knock at that sync epoch sequence 1.
+Each sync knock is always set to window sequence 0 so that the PHY is stable since the time of the windowing is not, the payload always includes the prefixed 8 IV bytes. The encrypted payload of 56 bytes contains:
 
-The local leader should attempt to maximize their use of sync epoch overlapping channels to allow for fast resynchronization, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently. When a mote detects that it is disconnected, it should also send regular knocks on the sync epoch channels of nearby known motes.
+* [0..3] footer offer (4 bytes)
+* [4..7] Cipher Sets supported (optional, up to 4 ordered CSIDs)
+* [8..15] header offer 1
+* [16..23] header offer 2 (optional)
+* [24..31] header offer 3 (optional)
+* [32..39] header offer 4 (optional)
+* [40..47] header offer 5 (optional)
+* [48..55] header offer 6 (optional)
 
+When a sync knock has been received and processed, the receiving mote may decide to begin an `INIT` epoch using the received sync knock as the time base for window 0 of that new `INIT` epoch and the header/footer information received in it.
+
+The 4 Cipher Set IDs are only included when discovery mode is enabled, and are zero bytes in all ther sync knocks.
+
+#### Mesh Synchronization Epochs
+
+Every mesh or mote must define and share one or more common `mesh sync headers` that are used to generate the `SYNC` epochs that assist with background synchronization of any disconnected motes.  These headers may be common across an entire mesh, or may be uniquely defined by each mote and exchanged out of band (via a telehash path channel, for instance).
+
+The mesh sync headers (8 bytes) are always combined with the first 8 bytes of each mote's hashname to derive every mote-specific `sync epoch`.
+
+The sync mode takes advantage of the fact that every epoch makes use of a shared medium that is divided into channels, such that every sync epoch will have some overlap with other private link epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their sync epoch's (sequence 0), they should then attempt to receive a sync knock exactly one window period after the transmission.
+
+The local leader should attempt to maximize their use of sync epoch overlapping channels to allow for fast resynchronization to them, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently. When a mote detects that it is disconnected, it should also send regular knocks on the sync epoch channels of nearby known motes.
+
+### `INIT` Epochs
+
+An `INIT` epoch only follows a `SYNC` and is generated from the information included in it.  The header is from the sync knock and the footer combines the 4 bytes from the sync knock with 4 bytes determined by the recipient depending on the current context between the motes.  The IV used for this epoch is always carried from the received sync knock.
+
+There are always private to two motes and are used for both transmit and receive between them.  The window sequence always starts at `1` since the epoch is the result of a `SYNC` and the first knock is always an accept knock that signals the acceptance of a new `INIT`.  The accept knock payload depends on the context, when discoverability is enabled it will contain the Cipher Set Key bytes padded with zeros, and during mesh synchronization it will be all zeros.
+
+The recipient of the accept knock may then respond with one or more chunk-encoded handshakes over this epoch, which after being processed the recipient of the handshake(s) may respond with handshakes in turn.
+
+Any `LINK` epochs defined in the encrypted handshakes will have the same time base as the `SYNC` and begin and the correct window sequences based on that.
+
+### `LINK` Epochs
+
+All `LINK` epochs follow a successful `INIT` or are triggered by an out-of-band synchronization, their time base and unique epoch ID is a result of those processes.
+
+The IV base for the epoch is always the first 8 bytes of the corresponding telehash link routing token.  All knocks are chunk-encoded encrypted telehash packets, either sync or async types.
 
 ### Discovery Mode
 
-When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to signal the public key material for existing motes, the special temporary discovery mode may be enabled on any existing mote.  Both motes must have the same shared discovery epoch to derive the channel that will be used.
+When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to bootstrap mote keys and time sync, a special temporary discovery mode may be enabled on any existing mote to assist.  Both motes must have the same shared discovery epoch ID for this process to work.
 
-When discovery mode is enabled on an existing mote in the mesh it requires knowing at least one `discovery epoch` where the last byte is the Cipher Set ID to be used. A special discovery knock is generated containing the mote's hashname key in intermediate form for that CS.  The discovery knock is then sent on that epoch's window sequence 0 so that the un-linked mote can generate an encrypted handshake based on the incoming key.  The special discovery knock also serves as a knock time-base at sequence 0 allowing the recipient to transmit a response full handshake at sequence 1 to establish a link.
+The discovery epoch ID is used as a `SYNC` for both motes, with each of them transmitting their sync knocks containing offers.  Since they will both be using the same PHY channel if possible they should first listen for a transmission in progress before sending another sync knock to minimize interference.
+
+The discovery sync knocks must always include the CSIDs supported, and the 4 byte footers included should be randomly generated with every transmission.
+
+Once one sync knock has been both sent and received the mote may then derive a compatible `INIT` epoch and attempt to being that with an accept knock.  These accept knocks must contain the correct Cipher Set Key bytes so that the recipient mote may respond with a valid encrypted handshake.
 
 This functionality should not be enabled/deployed by default, it should only be used when management policy explicitly requires it for special/public use cases or temporary pairing/provisioning setup.
 
