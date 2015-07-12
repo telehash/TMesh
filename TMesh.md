@@ -68,7 +68,7 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 * `knock` - a single transmission
 * `window` - the period for a knock, 2^22 microseconds (~4.2 seconds)
 * `window sequence` - each window will change frequency/channels in a sequence
-* `epoch` - one unique set of window sequences, derived from an 8 byte header and 8 random bytes
+* `epoch` - one unique set of window sequences, derived from an 8 byte header and 8 random byte footer
 * `neighborhood` - the list of known nearby motes
 * `z-index` - the self-asserted resource level (priority) from any mote
 * `leader` - the highest z-index visible in any mote's neighborhood
@@ -87,7 +87,7 @@ The number and types of epochs available depend entirely on the current energy b
 
 An `epoch` is defined with a unique 16-byte identifier, specifying the exact PHY encoding details and including random bytes that serve as a shared key for that epoch.
 
-The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed body.
+The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed footer.
 
 The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, the use of any FEC coding, etc details on the transmission/reception.  The PHY must use the entire epoch identifer including the random seed body and the current epoch counter to vary the transmission frequency and specific knock timing offset of each window in the epoch.  (note: define the standard way of determining this, likely using AES-128 hardware w/ the epoch as the key and window as the sequence to encrypt a common base to derive shared source bits)
 
@@ -95,19 +95,19 @@ Regulatory restrictions around channel dwell time may require additional frequen
 
 Transmitted payloads do not need whitening as encrypted packets are by nature DC-free.  They also do not need CRC as all telehash packets have authentication bytes included for integrity verification.
 
-If the chunk-encoded encrypted payload does not fill the fixed 64 byte frame the remaining bytes must contain additional data so as to not reveal the payload size.
+A single fixed 64 byte payload can transmitted during each window in an epoch, this is called a `knock`.  If the un-encrypted payload does not fill the full 64 byte frame the remaining bytes must contain additional data so as to not reveal the actual payload size.
 
 > WIP - determine a standard filler data format that will add additional dynamically sized error correction, explore taking advantage of the fact that the inner and outer bitstreams are encrypted and bias-free (Gaussian distribution divergence?), the last byte should always duplicate the first/length to ensure differentiation between payload/filler
 
 ### MAC
 
-There is no mote addressing or other metadata included in the encoded bytes, no framing other than the length of the payload.  The uniqueness of the timing and signalling of each epoch is the mote addressing mechanism.
+There is no mote addressing or other metadata included in the transmitted bytes, including there being no framing outside of the encrypted ciphertext in a knock.  The uniqueness of each epoch's timing and PHY encoding is the only mote addressing mechanism.
 
-One epoch is also a private encrypted session between the two motes, where the epoch's 16 bytes are first SHA-256 hashed and the resulting 32 byte digest is appended with the current link routing token and then SHA-256 hashed again.  The resulting digest is then used as the AES-128 key and the current count of total windows since the first sync is used as the IV.  All payloads are encrypted before transmission regardless of if they are already encrypted.
+Every epoch is a unique private encrypted session between the two motes, with a shared private key generated from the epoch ID and other state data depending on the context. All payloads are AES-128 encrypted again before transmission regardless of if they are already encrypted via telehash.
 
-Additional MAC-only packet types are defined for exchanging the current set of epochs active between any two motes.  An additional pre-set `sync` mode is defined for bootstrapping motes from scratch or if they loose sync.
+Additional MAC-only packet types are defined for re-synchronizing two motes and enabling a discovery mode for initial pairing.
 
-Each mote should actively make use of multiple epochs with more efficient options to optimize the overall energy usage.  Every mote advertises their current energy resource level as a `z-index` as an additional mesh optimization strategy.
+Each mote should actively make use of multiple epochs to another mote and include more efficient options to optimize the overall energy usage.  Every mote advertises their current energy resource level as a `z-index` as an additional mesh optimization strategy.
 
 ### Mesh
 
@@ -184,7 +184,23 @@ TBD
 
 ## MAC
 
-### Sync Mode
+### AES-128
+
+One epoch is also a private encrypted session between the two motes.  The epoch's 16 bytes are used as the AES-128 key and the IV is based on the current window sequence counter.  All knocks transmitted in the first window `0` must include an 8 byte random IV at the beginning of the payload.  
+
+The IV of subsequent knocks is that base initial IV with the current window sequence added to it.  There may be other methods of loading an initial IV and beginning transmission at a later window sequence than starting with the `0` transmission, it is common to start at sequence `1` using a shared IV from another source.
+
+### Payload Types
+
+Since a payload is always encrypted and there are no framing bytes transmitted, the only way to determine different types of payloads is through the context of the epoch itself.
+
+There are currently three different types of epochs defined:
+
+* `SYNC` - used for synchronization signalling
+* `INIT` - only used to send initial encrypted handshakes 
+* `LINK` - encrypted telehash packets from an established link
+
+### `SYNC` Epochs
 
 Every mesh must define and share one or more common `sync headers` that are used to generate `sync epochs` that assist with background synchronization of any disconnected motes.
 
