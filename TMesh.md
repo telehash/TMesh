@@ -200,7 +200,7 @@ There are currently three different types of epochs defined:
 * `INIT` - only used to send initial encrypted handshakes 
 * `LINK` - encrypted telehash packets from an established link
 
-### `SYNC` Epochs
+### SYNC Epochs
 
 The synchronization process requires a shared or commonly configured source of epoch IDs or out of band mechanism for exchanging them dynamically.  A `SYNC` epoch only assists with background synchronization and establishment of a dynamic `INIT` epoch for the handshaking process.
 
@@ -208,14 +208,14 @@ With every sync knock one or more motes may be receiving and transmitting at the
 
 Each sync knock is always set to window sequence 0 so that the PHY is stable since the time of the windowing is not, the payload always includes the prefixed 8 IV bytes. The encrypted payload of 56 bytes contains:
 
-* [0..3] footer offer (4 bytes)
-* [4..7] Cipher Sets supported (optional, up to 4 ordered CSIDs)
-* [8..15] header offer 1
-* [16..23] header offer 2 (optional)
-* [24..31] header offer 3 (optional)
-* [32..39] header offer 4 (optional)
-* [40..47] header offer 5 (optional)
-* [48..55] header offer 6 (optional)
+* `0..3` footer offer (4 bytes)
+* `4..7` Cipher Sets supported (optional, up to 4 ordered CSIDs)
+* `8..15` header offer 1
+* `16..23` header offer 2 (optional)
+* `24..31` header offer 3 (optional)
+* `32..39` header offer 4 (optional)
+* `40..47` header offer 5 (optional)
+* `48..55` header offer 6 (optional)
 
 When a sync knock has been received and processed, the receiving mote may decide to begin an `INIT` epoch using the received sync knock as the time base for window 0 of that new `INIT` epoch and the header/footer information received in it.
 
@@ -231,7 +231,7 @@ The sync mode takes advantage of the fact that every epoch makes use of a shared
 
 The local leader should attempt to maximize their use of sync epoch overlapping channels to allow for fast resynchronization to them, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently. When a mote detects that it is disconnected, it should also send regular knocks on the sync epoch channels of nearby known motes.
 
-### `INIT` Epochs
+### INIT Epochs
 
 An `INIT` epoch only follows a `SYNC` and is generated from the information included in it.  The header is from the sync knock and the footer combines the 4 bytes from the sync knock with 4 bytes determined by the recipient depending on the current context between the motes.  The IV used for this epoch is always carried from the received sync knock.
 
@@ -241,7 +241,7 @@ The recipient of the accept knock may then respond with one or more chunk-encode
 
 Any `LINK` epochs defined in the encrypted handshakes will have the same time base as the `SYNC` and begin and the correct window sequences based on that.
 
-### `LINK` Epochs
+### LINK Epochs
 
 All `LINK` epochs follow a successful `INIT` or are triggered by an out-of-band synchronization, their time base and unique epoch ID is a result of those processes.
 
