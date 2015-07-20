@@ -89,7 +89,7 @@ An `epoch` is defined with a unique 16-byte identifier, specifying the exact PHY
 
 The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed footer that is typically composed by combining two sources of random bytes in different orders to specify directions (A+B=tx, B+A=rx).
 
-The PHY encoding uses the headers to determine the power, channel, spreading, bitrate, the use of any FEC coding, etc details on the transmission/reception.  The PHY must use the entire epoch identifer including the random seed footer and the current epoch window counter to vary the transmission frequency and specific knock timing offset of each window in the epoch.  (note: define the standard way of determining this using the AES-128 MAC)
+The PHY encoding uses the headers to determine the power, frequency range, spreading, bitrate, error correction usage, etc details on the transmission/reception.  The specific channel frequency and timing based on the current window in the epoch and the full epoch ID (define the standard way of determining this using the AES-128 MAC)
 
 Regulatory restrictions around channel dwell time may require additional frequency channel changes during one window as determined by each specific PHY implementation.
 
