@@ -89,7 +89,7 @@ An `epoch` is defined with a unique 16-byte identifier, specifying the exact PHY
 
 The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed footer that is typically composed by combining two sources of random bytes in different orders to specify directions (A+B=tx, B+A=rx).
 
-The PHY encoding uses the headers to determine the power, frequency range, spreading, bitrate, error correction usage, etc details on the transmission/reception.  The specific channel frequency and timing based on the current window in the epoch and the full epoch ID (define the standard way of determining this using the AES-128 MAC)
+The PHY encoding uses the headers to determine the power, frequency range, spreading, bitrate, error correction usage, etc details on the transmission/reception.  The specific channel frequency hopping and transmission window timing are derived from the full epoch ID and are unique to each epoch.
 
 Regulatory restrictions around channel dwell time may require additional frequency channel changes during one window as determined by each specific PHY implementation.
 
@@ -129,6 +129,18 @@ and indicate requirement levels for compliant TMesh implementations.
 
 ## PHY
 
+### Private Hopping Sequence
+
+Most PHY encodings require specific synchronized channel and timing inputs, these are generated from the shared epoch ID via a consistent transformation.
+
+The 16 byte epoch ID is first SHA-256 encoded to get a 32 byte digest.  The first 16 bytes of that digest are used as the shared AES-128 `sequence-key` between the motes.  The window sequence number is always used as the IV input.  An AES encrypt is then performed on size 0x00 bytes to derive the unique pad for this window.
+
+The first two bytes of this pad are the channel selection, the 2^16 total possible channels are simply mod'd to the number of usable channels based on the current PHY type.  If there are 50 channels, it would be `channel = ((uint16_t)pad) % 50`.
+
+The next four bytes (32 bits) of this pad are the window microsecond offset timing source.  Each window is up to 2^22 microseconds, but every PHY will have a fixed amount of time it takes to send or receive within that window and that is always subtracted from the total possible microseconds first.  The remaining microsecond offset start times are mod'd to the 32 bit generated source number to get the exact offset for that window.
+
+### Epoch Types
+
 Epoch type table:
 
 | Byte  | Encoding
@@ -139,15 +151,15 @@ Epoch type table:
 | 0x03  | LoRa
 | 0x04  | (O)QPSK
 
-### OOK
+#### OOK
 
 TBD
 
-### (G)FSK
+#### (G)FSK
 
 TBD
 
-### LoRa
+#### LoRa
 
 Epoch Header
 
@@ -178,17 +190,17 @@ Notes on ranges:
 * [Atmel](http://blog.atmel.com/2013/04/23/praise-the-lord-a-new-sub-1ghz-rf-transceiver-supporting-4-major-regional-frequency-bands/)
 
 
-### (O)QPSK
+#### (O)QPSK
 
 TBD
 
 ## MAC
 
-### AES-128
+### Private Knock Encryption
 
-One epoch is also a private encrypted session between the two motes.  The epoch's 16 bytes are used as the AES-128 key and the IV is based on the current window sequence counter.  All knocks transmitted in the first window `0` must include an 8 byte random IV at the beginning of the payload.  
+One epoch is also a private encrypted session between the two motes.  The epoch's 16 bytes are first SHA-256 encoded to get a 32 byte digest.  The second 16 bytes of the digest are used as the AES-128 `knock-key` and the IV is based on adding the current window sequence counter to a given 8 byte random IV-pad.  All knocks transmitted in the first window `0` must always include the 8 byte random IV-pad at the beginning of the payload and it must be re-generated with each repeated transmission.  At no point is the source IV transmitted again in the epoch.
 
-The IV of subsequent knocks is that initial base IV with the current window sequence added to it.  It is also common to load an initial IV and begin an epoch at a later window sequence than starting with the `0` transmission.
+When an epoch is initialized from another source starting from a higher window sequence the shared private IV-pad must be provided. This helps maximize the privacy and uniqueness of every knock between any two motes.
 
 ### Payload Types
 
