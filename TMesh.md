@@ -305,12 +305,6 @@ The z-index also serves as a window mask for all of that mote's receiving epoch 
 
 # Security Considerations
 
-### ChaCha
-
-Ciphertext is always generated using the [ChaCha20 cipher](http://cr.yp.to/chacha.html), requiring an 8 byte nonce and 32 byte key.
-
-All hash digests are produced with [SHA-256](http://en.wikipedia.org/wiki/SHA-2), resulting in a 32 byte binary output.
-
 
 # References
 
