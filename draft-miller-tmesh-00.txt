@@ -70,24 +70,24 @@ Table of Contents
    2.  Protocol Definition  . . . . . . . . . . . . . . . . . . . . .  7
      2.1.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  7
      2.2.  PHY  . . . . . . . . . . . . . . . . . . . . . . . . . . .  7
-       2.2.1.  Private Hopping Sequence . . . . . . . . . . . . . . .  7
-       2.2.2.  Epoch Types  . . . . . . . . . . . . . . . . . . . . .  7
+       2.2.1.  Headers / Footers  . . . . . . . . . . . . . . . . . .  7
+       2.2.2.  Private Hopping Sequence . . . . . . . . . . . . . . .  7
+       2.2.3.  Epoch Types  . . . . . . . . . . . . . . . . . . . . .  8
      2.3.  MAC  . . . . . . . . . . . . . . . . . . . . . . . . . . .  9
-       2.3.1.  Private Knock Encryption . . . . . . . . . . . . . . .  9
+       2.3.1.  Encrypted Knock Payload  . . . . . . . . . . . . . . .  9
        2.3.2.  Payload Types  . . . . . . . . . . . . . . . . . . . .  9
        2.3.3.  SYNC Epochs  . . . . . . . . . . . . . . . . . . . . . 10
        2.3.4.  INIT Epochs  . . . . . . . . . . . . . . . . . . . . . 11
        2.3.5.  LINK Epochs  . . . . . . . . . . . . . . . . . . . . . 12
        2.3.6.  Discovery Mode . . . . . . . . . . . . . . . . . . . . 12
-     2.4.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+     2.4.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
        2.4.1.  z-index  . . . . . . . . . . . . . . . . . . . . . . . 13
      2.5.  Notes  . . . . . . . . . . . . . . . . . . . . . . . . . . 13
    3.  Implementation Notes . . . . . . . . . . . . . . . . . . . . . 13
    4.  Security Considerations  . . . . . . . . . . . . . . . . . . . 13
-   5.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+   5.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 14
    Appendix A.  Examples  . . . . . . . . . . . . . . . . . . . . . . 14
    Author's Address . . . . . . . . . . . . . . . . . . . . . . . . . 14
-
 
 
 
@@ -236,12 +236,12 @@ Internet-Draft                    tmesh                         May 2015
    capable of a max throughput of 120 bits per second average,
    approximately 1 kilobyte per minute.  Every mote has at least one
    receiving epoch and one sending epoch per link to another mote, and
-   will often have multiple epochs with other motes to increase the
-   overall bandwidth available.
+   will typically have multiple epochs with other motes to increase the
+   overall bandwidth capacity and minimize latency.
 
    The number and types of epochs available depend entirely on the
    current energy budget, every epoch type has a fixed minimum energy
-   cost for its lifetime.
+   cost per window to send/receive.
 
 1.4.1.  PHY
 
@@ -252,10 +252,8 @@ Internet-Draft                    tmesh                         May 2015
    The first byte is a fixed "type" that determines the category of PHY
    encoding technique to use, often these are different modes on
    transceivers.  The following 1-7 bytes are headers that are specified
-   by each type of encoding, and the remaining 8 bytes are always a
-   unique random seed footer that is typically composed by combining two
-   sources of random bytes in different orders to specify directions
-   (A+B=tx, B+A=rx).
+   by each type of encoding, and the remaining 8 footer bytes are always
+   a unique random nonce.
 
    The PHY encoding uses the headers to determine the power, frequency
    range, spreading, bitrate, error correction usage, etc details on the
@@ -268,11 +266,13 @@ Internet-Draft                    tmesh                         May 2015
    by each specific PHY implementation.
 
    Transmitted payloads do not need whitening as encrypted packets are
-   by nature DC-free.  They also do not require CRC as all telehash
-   packets have authentication bytes included for integrity
+   by nature DC-free.  They also do not explicitly require CRC as all
+   telehash packets have authentication bytes included for integrity
    verification.
 
    A single fixed 64 byte payload is transmitted during each window in
+   an epoch, this is called a "knock".  If the un-encrypted payload does
+   not fill the full 64 byte frame the remaining bytes must contain
 
 
 
@@ -281,8 +281,6 @@ Miller                  Expires November 17, 2015               [Page 5]
 Internet-Draft                    tmesh                         May 2015
 
 
-   an epoch, this is called a "knock".  If the un-encrypted payload does
-   not fill the full 64 byte frame the remaining bytes must contain
    additional data so as to not reveal the actual payload size.
 
       WIP - determine a standard filler data format that will add
@@ -300,9 +298,10 @@ Internet-Draft                    tmesh                         May 2015
    timing and PHY encoding is the only mote addressing mechanism.
 
    Every epoch is a unique individual encrypted session between the two
-   motes, with a shared private key generated from the full epoch ID.
-   All payloads are AES-128 encrypted again before transmission
-   regardless of if they are already encrypted via telehash.
+   motes, with a shared secret key derived directly from the full epoch
+   ID and nonce based on the current window sequence.  All payloads are
+   encrypted with the ChaCha20 cipher [2] before transmission regardless
+   of if they are already encrypted via telehash.
 
    Additional MAC-only packet types are defined for re-synchronizing two
    motes and enabling a discovery mode for initial pairing.
@@ -329,6 +328,7 @@ Internet-Draft                    tmesh                         May 2015
    inherits the responsibility to monitor each neighbor's neighborhood
    for other routers and establish direct or bridged links with them.
    Any mote with a packet for a non-local hashname will send it to their
+   router, whom will send it to the next highest router it is connected
 
 
 
@@ -337,7 +337,6 @@ Miller                  Expires November 17, 2015               [Page 6]
 Internet-Draft                    tmesh                         May 2015
 
 
-   router, whom will send it to the next highest router it is connected
    to until it reaches the highest in the mesh.  The highest resourced
    router is responsible for maintaining an index of all available
    motes/hashnames in the mesh.
@@ -355,36 +354,37 @@ Internet-Draft                    tmesh                         May 2015
 
 2.2.  PHY
 
-2.2.1.  Private Hopping Sequence
+2.2.1.  Headers / Footers
+
+   The footer is typically composed by combining two sources of random
+   bytes in different orders to specify directions (A+B=tx, B+A=rx).
+
+2.2.2.  Private Hopping Sequence
 
    Most PHY encodings require specific synchronized channel and timing
    inputs, these are generated from the shared epoch ID via a consistent
    transformation.
 
-   The 16 byte epoch ID is first SHA-256 encoded to get a 32 byte
-   digest.  The first 16 bytes of that digest are used as the shared
-   AES-128 "sequence-key" between the motes.  The window sequence number
-   is always used as the IV input.  An AES encrypt is then performed on
-   size 0x00 bytes to derive the unique pad for this window.
+   The 16 byte epoch ID is first SHA-256 [3] hashed to get a 32 byte
+   digest.  The digest is used as the shared secret key between the
+   motes for the ChaCha20 cipher.  The base nonce is by default the last
+   8 bytes (footer) of the epoch ID, and may be specified or over-ridden
+   with other common sources (such as the telehash link routing token).
+   The current window sequence number is always added to the base nonce
+   before being used.
 
-   The first two bytes of this pad are the channel selection, the 2^16
-   total possible channels are simply mod'd to the number of usable
-   channels based on the current PHY type.  If there are 50 channels, it
-   would be "channel = ((uint16_t)pad) % 50".
+   An eight byte null/zero padd is encrypted with the current epoch key/
+   nonce for each window and the ciphertext result is used for channel
+   selection and window timing.
 
-   The next four bytes (32 bits) of this pad are the window microsecond
-   offset timing source.  Each window is up to 2^22 microseconds, but
-   every PHY will have a fixed amount of time it takes to send or
-   receive within that window and that is always subtracted from the
-   total possible microseconds first.  The remaining microsecond offset
-   start times are mod'd to the 32 bit generated source number to get
-   the exact offset for that window.
+   The first two bytes of the ciphertext result is used for channel
+   selection as a network order unsigned short integer.  The 2^16 total
+   possible channels are simply mod'd to the number of usable channels
+   based on the current PHY type.  If there are 50 channels, it would be
+   "channel = ((uint16_t)pad) % 50".
 
-2.2.2.  Epoch Types
-
-   Epoch type table:
-
-
+   The next four bytes (32 bits) is used as the window microsecond
+   offset timing source as a network order unsigned long integer.  Each
 
 
 
@@ -392,6 +392,16 @@ Miller                  Expires November 17, 2015               [Page 7]
 
 Internet-Draft                    tmesh                         May 2015
 
+
+   window is up to 2^22 microseconds, but every PHY will have a fixed
+   amount of time it takes to send or receive within that window and
+   that is always subtracted from the total possible microseconds first.
+   The remaining microsecond offset start times are mod'd to get the
+   exact offset for that window.
+
+2.2.3.  Epoch Types
+
+   Epoch type table:
 
                             +------+----------+
                             | Byte | Encoding |
@@ -403,15 +413,15 @@ Internet-Draft                    tmesh                         May 2015
                             | 0x04 |  (O)QPSK |
                             +------+----------+
 
-2.2.2.1.  OOK
+2.2.3.1.  OOK
 
-   TBD
+      TBD
 
-2.2.2.2.  (G)FSK
+2.2.3.2.  (G)FSK
 
-   TBD
+      TBD
 
-2.2.2.3.  LoRa
+2.2.3.3.  LoRa
 
    Epoch Header
 
@@ -431,6 +441,14 @@ Internet-Draft                    tmesh                         May 2015
 
    Freq Table:
 
+
+
+
+Miller                  Expires November 17, 2015               [Page 8]
+
+Internet-Draft                    tmesh                         May 2015
+
+
         +--------+-----+------+----------+-----------------+------+
         | Region | Low | High | mW (erp) |       Reg       |  ID  |
         +--------+-----+------+----------+-----------------+------+
@@ -441,48 +459,34 @@ Internet-Draft                    tmesh                         May 2015
         +--------+-----+------+----------+-----------------+------+
 
    In the US region 0x01 to reach maximum transmit power each window may
-
-
-
-Miller                  Expires November 17, 2015               [Page 8]
-
-Internet-Draft                    tmesh                         May 2015
-
-
    transmit on a channel for more than 400ms, when that limit is reached
    a new pseudo-random frequency must be derived from the Epoch and
-   hopped to.  See App Note [2].
+   hopped to.  See App Note [4].
 
    Notes on ranges:
 
-   o  SRRC [3]
+   o  SRRC [5]
 
-   o  Z-Wave [4]
+   o  Z-Wave [6]
 
-   o  Atmel [5]
+   o  Atmel [7]
 
-2.2.2.4.  (O)QPSK
+2.2.3.4.  (O)QPSK
 
-   TBD
+      TBD
 
 2.3.  MAC
 
-2.3.1.  Private Knock Encryption
+2.3.1.  Encrypted Knock Payload
 
-   One epoch is also a private encrypted session between the two motes.
-   The epoch's 16 bytes are first SHA-256 encoded to get a 32 byte
-   digest.  The second 16 bytes of the digest are used as the AES-128
-   "knock-key" and the IV is based on adding the current window sequence
-   counter to a given 8 byte random IV-pad.  All knocks transmitted in
-   the first window "0" must always include the 8 byte random IV-pad at
-   the beginning of the payload and it must be re-generated with each
-   repeated transmission.  At no point is the source IV transmitted
-   again in the epoch.
-
-   When an epoch is initialized from another source starting from a
-   higher window sequence the shared private IV-pad must be provided.
-   This helps maximize the privacy and uniqueness of every knock between
-   any two motes.
+   As defined by the PHY, a 32 byte secret is derived from every epoch
+   ID.  All knocks transmitted in the first window sequence "0" must
+   include an 8 byte random nonce at the beginning of the payload.  If
+   sequence "0" is re-transmitted a new random nonce must be re-
+   generated with each repeated transmission.  At no point is the base
+   nonce transmitted again in the epoch, every subsequence nonce is the
+   base one with the current window sequence as a network order unsigned
+   double integer ("uint64_t") added to it.
 
 2.3.2.  Payload Types
 
@@ -492,10 +496,6 @@ Internet-Draft                    tmesh                         May 2015
 
    There are currently three different types of epochs defined:
 
-   o  "SYNC" - used for synchronization signalling
-
-   o  "INIT" - only used to send initial encrypted handshakes to create
-      a new link
 
 
 
@@ -505,25 +505,30 @@ Miller                  Expires November 17, 2015               [Page 9]
 Internet-Draft                    tmesh                         May 2015
 
 
-   o  "LINK" - encrypted telehash packets from an established link
+   o  "SYNC" - used for synchronization signalling
+
+   o  "INIT" - only used to send initial encrypted handshakes to
+      establish a new link
+
+   o  "LINK" - encrypted telehash packets for an established link
 
 2.3.3.  SYNC Epochs
 
    The synchronization process requires a shared or commonly configured
-   source of epoch IDs or out of band mechanism for exchanging them
+   source of sync epoch IDs or out of band mechanism for exchanging them
    dynamically.  A "SYNC" epoch only assists with background
    synchronization and establishment of a unique one-time "INIT" epoch
    for the handshaking process.
 
    With every sync knock one or more motes may be receiving and
    transmitting at the same time on the same epoch increasing the risk
-   of interference so they are only used as strictly necessary and as
+   of interference, so they are only used as strictly necessary and as
    infrequently as possible.
 
    Each sync knock is always set to window sequence 0 so that the PHY is
    stable since the time of the windowing is not, the payload always
-   includes the prefixed 8 IV bytes.  The encrypted payload of 56 bytes
-   contains:
+   includes the prefixed 8 nonce base bytes.  The encrypted payload of
+   56 bytes contains:
 
    o  "0..3" Cipher Sets supported (optional, up to 4 ordered CSIDs)
 
@@ -543,16 +548,11 @@ Internet-Draft                    tmesh                         May 2015
 
    When a sync knock has been received and processed, the receiving mote
    may decide to begin an "INIT" epoch using the received sync knock as
-   the time base for window 0 of that new "INIT" epoch and the ID
-   generated from both a sent and received sync knock.
+   the time base for window 0 of that new "INIT" epoch.  That new epoch
+   ID is generated by combining the sync ID header with a footer
+   composed of the random seeds from both a sent and received sync
+   knock.
 
-   The 4 Cipher Set IDs are only included when discovery mode is
-   enabled, and are 0xFF bytes in all other sync knocks.
-
-2.3.3.1.  Mesh Synchronization Epochs
-
-   Every mesh or mote must define and share one or more common "mesh
-   sync headers" that are used to generate the "SYNC" epochs that assist
 
 
 
@@ -561,6 +561,13 @@ Miller                  Expires November 17, 2015              [Page 10]
 Internet-Draft                    tmesh                         May 2015
 
 
+   The 4 Cipher Set IDs are only included when discovery mode is
+   enabled, and are 0xFF bytes in all other sync knocks.
+
+2.3.3.1.  Mesh Synchronization Epochs
+
+   Every mesh or mote must define and share one or more common "mesh
+   sync headers" that are used to generate the "SYNC" epochs that assist
    with background synchronization of any disconnected motes.  These
    headers may be common across an entire mesh, or may be uniquely
    defined by each mote and exchanged out of band (via a telehash path
@@ -591,8 +598,7 @@ Internet-Draft                    tmesh                         May 2015
    information included in it.  The header is from the sync knock and
    the footer combines the 4 byte seed from the sync knock with 4 bytes
    determined by the recipient depending on the current context between
-   the motes.  The IV used for this epoch is always carried from the
-   received sync knock.
+   the motes.
 
    These are always private to two motes and are used for both transmit
    and receive between them.  The window sequence always starts at "1"
@@ -603,12 +609,6 @@ Internet-Draft                    tmesh                         May 2015
    zeros, and during mesh synchronization it will be all 0xFF bytes.
 
    The recipient of the accept knock may then respond with one or more
-   chunk-encoded handshakes over this epoch, which after being processed
-   the recipient of the handshake(s) may respond with handshakes in
-   turn.
-
-   Any "LINK" epochs defined in the encrypted handshakes will have the
-   same time base as the "SYNC" and begin and the correct window
 
 
 
@@ -617,6 +617,12 @@ Miller                  Expires November 17, 2015              [Page 11]
 Internet-Draft                    tmesh                         May 2015
 
 
+   chunk-encoded handshakes over this epoch, which after being processed
+   the recipient of the handshake(s) may respond with handshakes in
+   turn.
+
+   Any "LINK" epochs defined in the encrypted handshakes will have the
+   same time base as the "SYNC" and begin and the correct window
    sequences based on that.
 
 2.3.5.  LINK Epochs
@@ -625,9 +631,9 @@ Internet-Draft                    tmesh                         May 2015
    out-of-band synchronization, their time base and unique epoch ID is a
    result of those processes.
 
-   The IV base for the epoch is always the first 8 bytes of the
+   The nonce base for the epoch is always the first 8 bytes of the
    corresponding telehash link routing token.  All knocks are chunk-
-   encoded encrypted telehash packets, either sync or async types.
+   encoded encrypted telehash packets.
 
 2.3.6.  Discovery Mode
 
@@ -657,12 +663,6 @@ Internet-Draft                    tmesh                         May 2015
    should only be used when management policy explicitly requires it for
    special/public use cases or temporary pairing/provisioning setup.
 
-2.4.  Mesh
-
-   Describe neighborhoods and routers, and routers performing ongoing
-   sync-mode duties.
-
-
 
 
 
@@ -672,6 +672,11 @@ Miller                  Expires November 17, 2015              [Page 12]
 
 Internet-Draft                    tmesh                         May 2015
 
+
+2.4.  Mesh
+
+   Describe neighborhoods and routers, and routers performing ongoing
+   sync-mode duties.
 
 2.4.1.  z-index
 
@@ -717,11 +722,6 @@ Internet-Draft                    tmesh                         May 2015
 
 5.  References
 
-URIs
-
-   [1]  <http://telehash.org>
-
-
 
 
 Miller                  Expires November 17, 2015              [Page 13]
@@ -729,16 +729,24 @@ Miller                  Expires November 17, 2015              [Page 13]
 Internet-Draft                    tmesh                         May 2015
 
 
-   [2]  <https://www.semtech.com/images/promo/
+URIs
+
+   [1]  <http://telehash.org>
+
+   [2]  <http://cr.yp.to/chacha.html>
+
+   [3]  <http://en.wikipedia.org/wiki/SHA-2>
+
+   [4]  <https://www.semtech.com/images/promo/
         FCC_Part15_regulations_Semtech.pdf>
 
-   [3]  <http://www.srrccn.org/srrc-approval-new2.htm>
+   [5]  <http://www.srrccn.org/srrc-approval-new2.htm>
 
-   [4]  <http://image.slidesharecdn.com/
+   [6]  <http://image.slidesharecdn.com/
         smarthometechshort-13304126815608-phpapp01-120228010616-
         phpapp01/95/smart-home-tech-short-14-728.jpg>
 
-   [5]  <http://blog.atmel.com/2013/04/23/
+   [7]  <http://blog.atmel.com/2013/04/23/
         praise-the-lord-a-new-sub-1ghz-rf-transceiver-supporting-4-
         major-regional-frequency-bands/>
 
@@ -763,14 +771,6 @@ Author's Address
 
    Email: jeremie@jabber.org
    URI:
-
-
-
-
-
-
-
-
 
 
 
