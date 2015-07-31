@@ -79,21 +79,21 @@ TMesh is the composite of three distinct layers, the physical radio medium encod
 
 Common across all of these is the concept of an `epoch`, which is a generated set of unique window sequences shared between two motes.  A `window` is where one `knock` can occur from one mote to another with a specified PHY unique to that window and epoch.  A `knock` is the transmission of a 64 byte fixed frame of payload, plus any PHY-specific overhead (preamble).
 
-Each epoch is the smallest divisible unit of bandwidth and is only capable of a max throughput of 120 bits per second average, approximately 1 kilobyte per minute. Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will often have multiple epochs with other motes to increase the overall bandwidth available.
+Each epoch is the smallest divisible unit of bandwidth and is only capable of a max throughput of 120 bits per second average, approximately 1 kilobyte per minute. Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will typically have multiple epochs with other motes to increase the overall bandwidth capacity and minimize latency.
 
-The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost for its lifetime.
+The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost per window to send/receive.
 
 ### PHY
 
 An `epoch` is defined with a unique 16-byte identifier, specifying the exact PHY encoding details and including random bytes that serve as a shared key for that epoch.
 
-The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 bytes are always a unique random seed footer that is typically composed by combining two sources of random bytes in different orders to specify directions (A+B=tx, B+A=rx).
+The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 footer bytes are always a unique random nonce. 
 
 The PHY encoding uses the headers to determine the power, frequency range, spreading, bitrate, error correction usage, etc details on the transmission/reception.  The specific channel frequency hopping and transmission window timing are derived from the full epoch ID and are unique to each epoch.
 
 Regulatory restrictions around channel dwell time may require additional frequency channel changes during one window as determined by each specific PHY implementation.
 
-Transmitted payloads do not need whitening as encrypted packets are by nature DC-free.  They also do not require CRC as all telehash packets have authentication bytes included for integrity verification.
+Transmitted payloads do not need whitening as encrypted packets are by nature DC-free.  They also do not explicitly require CRC as all telehash packets have authentication bytes included for integrity verification.
 
 A single fixed 64 byte payload is transmitted during each window in an epoch, this is called a `knock`.  If the un-encrypted payload does not fill the full 64 byte frame the remaining bytes must contain additional data so as to not reveal the actual payload size.
 
@@ -103,7 +103,7 @@ A single fixed 64 byte payload is transmitted during each window in an epoch, th
 
 There is no mote addressing or other metadata included in the transmitted bytes, including there being no framing outside of the encrypted ciphertext in a knock.  The uniqueness of each epoch's timing and PHY encoding is the only mote addressing mechanism.
 
-Every epoch is a unique individual encrypted session between the two motes, with a shared private key generated from the full epoch ID. All payloads are AES-128 encrypted again before transmission regardless of if they are already encrypted via telehash.
+Every epoch is a unique individual encrypted session between the two motes, with a shared secret key derived directly from the full epoch ID and nonce based on the current window sequence. All payloads are encrypted with the [ChaCha20 cipher](http://cr.yp.to/chacha.html) before transmission regardless of if they are already encrypted via telehash.
 
 Additional MAC-only packet types are defined for re-synchronizing two motes and enabling a discovery mode for initial pairing.
 
@@ -129,15 +129,22 @@ and indicate requirement levels for compliant TMesh implementations.
 
 ## PHY
 
+### Headers / Footers
+
+The footer is typically composed by combining two sources of random bytes in different orders to specify directions (A+B=tx, B+A=rx).
+
+
 ### Private Hopping Sequence
 
 Most PHY encodings require specific synchronized channel and timing inputs, these are generated from the shared epoch ID via a consistent transformation.
 
-The 16 byte epoch ID is first SHA-256 encoded to get a 32 byte digest.  The first 16 bytes of that digest are used as the shared AES-128 `sequence-key` between the motes.  The window sequence number is always used as the IV input.  An AES encrypt is then performed on size 0x00 bytes to derive the unique pad for this window.
+The 16 byte epoch ID is first [SHA-256](http://en.wikipedia.org/wiki/SHA-2) hashed to get a 32 byte digest.  The digest is used as the shared secret key between the motes for the ChaCha20 cipher.  The base nonce is by default the last 8 bytes (footer) of the epoch ID, and may be specified or over-ridden with other common sources (such as the telehash link routing token).  The current window sequence number is always added to the base nonce before being used.
 
-The first two bytes of this pad are the channel selection, the 2^16 total possible channels are simply mod'd to the number of usable channels based on the current PHY type.  If there are 50 channels, it would be `channel = ((uint16_t)pad) % 50`.
+An eight byte null/zero padd is encrypted with the current epoch key/nonce for each window and the ciphertext result is used for channel selection and window timing.
 
-The next four bytes (32 bits) of this pad are the window microsecond offset timing source.  Each window is up to 2^22 microseconds, but every PHY will have a fixed amount of time it takes to send or receive within that window and that is always subtracted from the total possible microseconds first.  The remaining microsecond offset start times are mod'd to the 32 bit generated source number to get the exact offset for that window.
+The first two bytes of the ciphertext result is used for channel selection as a network order unsigned short integer.  The 2^16 total possible channels are simply mod'd to the number of usable channels based on the current PHY type.  If there are 50 channels, it would be `channel = ((uint16_t)pad) % 50`.
+
+The next four bytes (32 bits) is used as the window microsecond offset timing source as a network order unsigned long integer.  Each window is up to 2^22 microseconds, but every PHY will have a fixed amount of time it takes to send or receive within that window and that is always subtracted from the total possible microseconds first.  The remaining microsecond offset start times are mod'd to get the exact offset for that window.
 
 ### Epoch Types
 
@@ -153,11 +160,11 @@ Epoch type table:
 
 #### OOK
 
-TBD
+> TBD
 
 #### (G)FSK
 
-TBD
+> TBD
 
 #### LoRa
 
@@ -192,15 +199,13 @@ Notes on ranges:
 
 #### (O)QPSK
 
-TBD
+> TBD
 
 ## MAC
 
-### Private Knock Encryption
+### Encrypted Knock Payload
 
-One epoch is also a private encrypted session between the two motes.  The epoch's 16 bytes are first SHA-256 encoded to get a 32 byte digest.  The second 16 bytes of the digest are used as the AES-128 `knock-key` and the IV is based on adding the current window sequence counter to a given 8 byte random IV-pad.  All knocks transmitted in the first window `0` must always include the 8 byte random IV-pad at the beginning of the payload and it must be re-generated with each repeated transmission.  At no point is the source IV transmitted again in the epoch.
-
-When an epoch is initialized from another source starting from a higher window sequence the shared private IV-pad must be provided. This helps maximize the privacy and uniqueness of every knock between any two motes.
+As defined by the PHY, a 32 byte secret is derived from every epoch ID.  All knocks transmitted in the first window sequence `0` must include an 8 byte random nonce at the beginning of the payload.  If sequence `0` is re-transmitted a new random nonce must be re-generated with each repeated transmission.  At no point is the base nonce transmitted again in the epoch, every subsequence nonce is the base one with the current window sequence as a network order unsigned double integer (`uint64_t`) added to it.
 
 ### Payload Types
 
@@ -209,16 +214,16 @@ Since a payload is always encrypted and there are no framing bytes transmitted, 
 There are currently three different types of epochs defined:
 
 * `SYNC` - used for synchronization signalling
-* `INIT` - only used to send initial encrypted handshakes to create a new link
-* `LINK` - encrypted telehash packets from an established link
+* `INIT` - only used to send initial encrypted handshakes to establish a new link
+* `LINK` - encrypted telehash packets for an established link
 
 ### SYNC Epochs
 
-The synchronization process requires a shared or commonly configured source of epoch IDs or out of band mechanism for exchanging them dynamically.  A `SYNC` epoch only assists with background synchronization and establishment of a unique one-time `INIT` epoch for the handshaking process.
+The synchronization process requires a shared or commonly configured source of sync epoch IDs or out of band mechanism for exchanging them dynamically.  A `SYNC` epoch only assists with background synchronization and establishment of a unique one-time `INIT` epoch for the handshaking process.
 
-With every sync knock one or more motes may be receiving and transmitting at the same time on the same epoch increasing the risk of interference so they are only used as strictly necessary and as infrequently as possible.
+With every sync knock one or more motes may be receiving and transmitting at the same time on the same epoch increasing the risk of interference, so they are only used as strictly necessary and as infrequently as possible.
 
-Each sync knock is always set to window sequence 0 so that the PHY is stable since the time of the windowing is not, the payload always includes the prefixed 8 IV bytes. The encrypted payload of 56 bytes contains:
+Each sync knock is always set to window sequence 0 so that the PHY is stable since the time of the windowing is not, the payload always includes the prefixed 8 nonce base bytes. The encrypted payload of 56 bytes contains:
 
 * `0..3` Cipher Sets supported (optional, up to 4 ordered CSIDs)
 * `4..7` random seed (4 bytes)
@@ -229,7 +234,7 @@ Each sync knock is always set to window sequence 0 so that the PHY is stable sin
 * `40..47` header offer 5 (optional)
 * `48..55` header offer 6 (optional)
 
-When a sync knock has been received and processed, the receiving mote may decide to begin an `INIT` epoch using the received sync knock as the time base for window 0 of that new `INIT` epoch and the ID generated from both a sent and received sync knock.
+When a sync knock has been received and processed, the receiving mote may decide to begin an `INIT` epoch using the received sync knock as the time base for window 0 of that new `INIT` epoch.  That new epoch ID is generated by combining the sync ID header with a footer composed of the random seeds from both a sent and received sync knock.
 
 The 4 Cipher Set IDs are only included when discovery mode is enabled, and are 0xFF bytes in all other sync knocks.
 
@@ -245,7 +250,7 @@ The local leader should attempt to maximize their use of sync epoch overlapping 
 
 ### INIT Epochs
 
-An `INIT` epoch only follows a `SYNC` and is generated from the information included in it.  The header is from the sync knock and the footer combines the 4 byte seed from the sync knock with 4 bytes determined by the recipient depending on the current context between the motes.  The IV used for this epoch is always carried from the received sync knock.
+An `INIT` epoch only follows a `SYNC` and is generated from the information included in it.  The header is from the sync knock and the footer combines the 4 byte seed from the sync knock with 4 bytes determined by the recipient depending on the current context between the motes.
 
 These are always private to two motes and are used for both transmit and receive between them.  The window sequence always starts at `1` since the epoch is the result of a `SYNC` and the first knock is always an accept knock that signals the acceptance of a new `INIT`.  The accept knock payload depends on the context, when discoverability is enabled it will contain the Cipher Set Key bytes padded with zeros, and during mesh synchronization it will be all 0xFF bytes.
 
@@ -257,7 +262,7 @@ Any `LINK` epochs defined in the encrypted handshakes will have the same time ba
 
 All `LINK` epochs follow a successful `INIT` or are triggered by an out-of-band synchronization, their time base and unique epoch ID is a result of those processes.
 
-The IV base for the epoch is always the first 8 bytes of the corresponding telehash link routing token.  All knocks are chunk-encoded encrypted telehash packets, either sync or async types.
+The nonce base for the epoch is always the first 8 bytes of the corresponding telehash link routing token.  All knocks are chunk-encoded encrypted telehash packets.
 
 ### Discovery Mode
 
@@ -299,6 +304,12 @@ The z-index also serves as a window mask for all of that mote's receiving epoch 
 
 
 # Security Considerations
+
+### ChaCha
+
+Ciphertext is always generated using the [ChaCha20 cipher](http://cr.yp.to/chacha.html), requiring an 8 byte nonce and 32 byte key.
+
+All hash digests are produced with [SHA-256](http://en.wikipedia.org/wiki/SHA-2), resulting in a 32 byte binary output.
 
 
 # References
