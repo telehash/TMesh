@@ -36,20 +36,21 @@ TMesh builds on the strong end-to-end encryption and privacy capabilities of [te
 
 The key attributes of TMesh are:
 
-  * high density - thousands per square mile
+  * high density - thousands per square kilometer
   * very low power - years on coin cell batteries
-  * wide area - optimized for long-range capable radios
+  * wide area - optimized for long-range (>1km) capable radios
   * high latency - low minimum duty cycle from seconds to minutes
-  * peer aware meshing - does not require dedicated coordinator motes
+  * peer aware meshing - does not require dedicated coordinator hardware
   * high interference resiliency - bi-modal PHY to maximize connectivity in all conditions
-  * dynamically resource optimized - powered motes naturally provide more assistance
+  * dynamically resource optimized - powered motes naturally provide more routing assistance
   * zero metadata broadcast - same absolute privacy and security principles as telehash
+  * dynamic spectrum - able to use any specialized private or regionally licensed bands
   
 ## The Need for Standards
 
 The existing best choices are all either only partial solutions like 802.15.4, require membership to participate like LoRaWAN, ZigBee, and Z-Wave, or are focused on specific verticals like DASH7 and Wireless M-Bus.
 
-All other options only provide incomplete or indadequate security and privacy, most use only optional AES-128 and often with complicated or fixed provisioning-based key management.  No existing option attempts to protect the mote identity and network metadata from monitoring.
+All other options only provide incomplete or indadequate security and privacy, most use only optional AES-128 and often with complicated or fixed provisioning-based key management.  No existing option fully protects the mote identity and network metadata from monitoring.
 
 ## Telehash Native
 
@@ -65,10 +66,11 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 ## Vocabulary
 
 * `mote` - a single physical transmitting/receiving device
+* `medium` - definition of the specific channels/settings the physical transceivers use
 * `knock` - a single transmission
 * `window` - the period for a knock, 2^22 microseconds (~4.2 seconds)
 * `window sequence` - each window will change frequency/channels in a sequence
-* `epoch` - one unique set of window sequences, derived from an 8 byte header and 8 random byte footer
+* `epoch` - one unique set of window sequences, derived from a medium and a secret
 * `neighborhood` - the list of known nearby motes
 * `z-index` - the self-asserted resource level (priority) from any mote
 * `leader` - the highest z-index visible in any mote's neighborhood
@@ -77,21 +79,21 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 
 TMesh is the composite of three distinct layers, the physical radio medium encoding (PHY), the shared management of the spectrum (MAC), and the networking relationships between 2+ motes (Mesh).
 
-Common across all of these is the concept of an `epoch`, which is a generated set of unique window sequences shared between two motes.  A `window` is where one `knock` can occur from one mote to another with a specified PHY unique to that window and epoch.  A `knock` is the transmission of a 64 byte fixed frame of payload, plus any PHY-specific overhead (preamble).
+Common across all of these is the concept of an `epoch`, which is a generated set of unique window sequences shared between two motes in one `medium`.  A `window` is where one `knock` can occur from one mote to another unique to that window and epoch.  A `knock` is the transmission of a 64 byte fixed frame of payload, plus any medium-specific overhead (preamble).
 
 Each epoch is the smallest divisible unit of bandwidth and is only capable of a max throughput of 120 bits per second average, approximately 1 kilobyte per minute. Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will typically have multiple epochs with other motes to increase the overall bandwidth capacity and minimize latency.
 
-The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost per window to send/receive.
+The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost per window to send/receive based on the medium settings.
 
 ### PHY
 
-An `epoch` is defined with a unique 16-byte identifier, specifying the exact PHY encoding details and including random bytes that serve as a shared key for that epoch.
+A `medium` is defined with 6 bytes that specify the type and exact PHY encoding details.  The 6 bytes are often encoded as 10 base32 characters for ease of use in JSON and configuration storage.
 
-The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers.  The following 1-7 bytes are headers that are specified by each type of encoding, and the remaining 8 footer bytes are always a unique random nonce. 
+The first byte is a fixed `type` that determines the category of PHY encoding technique to use, often these are different modes on transceivers or different drivers entirely.
 
-The PHY encoding uses the headers to determine the power, frequency range, spreading, bitrate, error correction usage, etc details on the transmission/reception.  The specific channel frequency hopping and transmission window timing are derived from the full epoch ID and are unique to each epoch.
+Each PHY driver uses the second through fifth medium bytes to determine the power, frequency range, number of channels, spreading, bitrate, error correction usage, regulatory requirements, channel dwell time, etc details on the transmission/reception.  The actual channel frequency hopping and transmission window timing are derived from the full epoch and not included in the medium.
 
-Regulatory restrictions around channel dwell time may require additional frequency channel changes during one window as determined by each specific PHY implementation.
+The last (6th) byte is a fixed `divider` that lowers the density of available windows in an epoch.  This enables two motes to greatly reduce the time required waking and listening for low power and high latency applications. (format TBD)
 
 Transmitted payloads do not need whitening as encrypted packets are by nature DC-free.  They also do not explicitly require CRC as all telehash packets have authentication bytes included for integrity verification.
 
@@ -103,9 +105,7 @@ A single fixed 64 byte payload is transmitted during each window in an epoch, th
 
 There is no mote addressing or other metadata included in the transmitted bytes, including there being no framing outside of the encrypted ciphertext in a knock.  The uniqueness of each epoch's timing and PHY encoding is the only mote addressing mechanism.
 
-Every epoch is a unique individual encrypted session between the two motes, with a shared secret key derived directly from the full epoch ID and nonce based on the current window sequence. All payloads are encrypted with the [ChaCha20 cipher](http://cr.yp.to/chacha.html) before transmission regardless of if they are already encrypted via telehash.
-
-Additional MAC-only packet types are defined for re-synchronizing two motes and enabling a discovery mode for initial pairing.
+Every epoch is a unique individual encrypted session between the two motes, with a shared secret key derived directly from the medium and other sources, and nonce based on the current window sequence. All payloads are encrypted with the [ChaCha20 cipher](http://cr.yp.to/chacha.html) before transmission regardless of if they are already encrypted via telehash.
 
 Each mote should actively make use of multiple epochs to another mote and include more efficient options to optimize the overall energy usage.  Every mote advertises their current energy resource level as a `z-index` as an additional mesh optimization strategy.
 
@@ -113,9 +113,9 @@ Each mote should actively make use of multiple epochs to another mote and includ
 
 There is two mechanisms used for enabling a larger scale mesh network with TMesh, `neighborhoods` (MAC layer) and `routers` (telehash/app layer).
 
-A neighborhood is the automatic sharing of other epochs one mote has active with every other mote it is linked with.  Every mote also supports a simple MAC-level window sequential forwarding service between neighbors to aid with discovery and resiliency.  The neighborhood map shared from each mote includes a unique addressible epoch id, the epoch, microsecond offset, and signal strength.
+A `neighborhood` is the automatic sharing of other motes that it has active epochs with.  Each neighbor mote is listed along with all of the mediums in use, last activity, and the signal strength for each medium.
 
-A router is always the neighbor with the highest z-index, which inherits the responsibility to monitor each neighbor's neighborhood for other routers and establish direct or bridged links with them.  Any mote with a packet for a non-local hashname will send it to their router, whom will send it to the next highest router it is connected to until it reaches the highest in the mesh.  The highest resourced router is responsible for maintaining an index of all available motes/hashnames in the mesh.
+A `router` is always the neighbor with the highest z-index, which inherits the responsibility to monitor each neighbor's neighborhood for other routers and establish direct or bridged links with them.  Any mote with a packet for a non-local hashname will send it to their router, whom will send it to the next highest router it is connected to until it reaches the highest in the mesh.  The highest resourced router is responsible for maintaining an index of all available motes/hashnames in the mesh.
 
 
 # Protocol Definition
@@ -129,22 +129,16 @@ and indicate requirement levels for compliant TMesh implementations.
 
 ## PHY
 
-### Headers / Footers
-
-The footer is typically composed by combining two sources of random bytes in different orders to specify directions (A+B=tx, B+A=rx).
-
 
 ### Private Hopping Sequence
 
-Most PHY encodings require specific synchronized channel and timing inputs, these are generated from the shared epoch ID via a consistent transformation.
+Most PHY encodings require specific synchronized channel and timing inputs, these are generated from the epoch's 32 byte secret via a consistent transformation.
 
-The 16 byte epoch ID is first [SHA-256](http://en.wikipedia.org/wiki/SHA-2) hashed to get a 32 byte digest.  The digest is used as the shared secret key between the motes for the ChaCha20 cipher.  The base nonce is by default the last 8 bytes (footer) of the epoch ID, and may be specified or over-ridden with other common sources (such as the telehash link routing token).  The current window sequence number is always added to the base nonce before being used.
+An eight byte null/zero pad is encrypted with the current epoch secret/nonce for each window and the ciphertext result is used for channel selection and window timing.
 
-An eight byte null/zero padd is encrypted with the current epoch key/nonce for each window and the ciphertext result is used for channel selection and window timing.
+The first two bytes of the ciphertext result is used for channel selection as a network order unsigned short integer.  The 2^16 total possible channels are simply mod'd to the number of usable channels based on the current medium.  If there are 50 channels, it would be `channel = ((uint16_t)pad) % 50`.
 
-The first two bytes of the ciphertext result is used for channel selection as a network order unsigned short integer.  The 2^16 total possible channels are simply mod'd to the number of usable channels based on the current PHY type.  If there are 50 channels, it would be `channel = ((uint16_t)pad) % 50`.
-
-The next four bytes (32 bits) is used as the window microsecond offset timing source as a network order unsigned long integer.  Each window is up to 2^22 microseconds, but every PHY will have a fixed amount of time it takes to send or receive within that window and that is always subtracted from the total possible microseconds first.  The remaining microsecond offset start times are mod'd to get the exact offset for that window.
+The next four bytes (32 bits) are used as the window microsecond offset timing source as a network order unsigned long integer.  Each window is up to 2^22 microseconds, but every medium will have a fixed amount of time it takes to send or receive within that window and that is first subtracted from the total possible microseconds.  The remaining microsecond offset start times are mod'd to get the exact offset for that window.
 
 ### Epoch Types
 
@@ -170,11 +164,10 @@ Epoch type table:
 
 Epoch Header
 
-* byte 1 - transmitting energy mA
-* byte 2 - standard frequency range (see table)
-* byte 3 - Bw & CodingRate (RegModemConfig 1)
-* byte 4 - SpreadingFactor (RegModemConfig 2)
-* byte 5-7 - zeros (reserved)
+* byte 2 - transmitting energy mA
+* byte 3 - standard frequency range (see table)
+* byte 4 - Bw & CodingRate (RegModemConfig 1)
+* byte 5 - SpreadingFactor (RegModemConfig 2)
 
 All preambles are set to the minimum size of 6.
 
@@ -189,7 +182,7 @@ Freq Table:
 | Japan  | 915 | 930  |          | ARIB T-108      | 0x03 |
 | China  | 779 | 787  | 10       | SRRC            | 0x04 |
 
-In the US region 0x01 to reach maximum transmit power each window may transmit on a channel for more than 400ms, when that limit is reached a new pseudo-random frequency must be derived from the Epoch and hopped to.  See [App Note](https://www.semtech.com/images/promo/FCC_Part15_regulations_Semtech.pdf).
+In the US region 0x01 to reach maximum transmit power each window may not transmit on a channel for more than 400ms, when that limit is reached a new channel must be derived from the epoch (TBD) and hopped to.  See [App Note](https://www.semtech.com/images/promo/FCC_Part15_regulations_Semtech.pdf).
 
 Notes on ranges:
 * [SRRC](http://www.srrccn.org/srrc-approval-new2.htm)
@@ -205,56 +198,53 @@ Notes on ranges:
 
 ### Encrypted Knock Payload
 
-As defined by the PHY, a 32 byte secret is derived from every epoch ID.  All knocks transmitted in the first window sequence `0` must include an 8 byte random nonce at the beginning of the payload.  If sequence `0` is re-transmitted a new random nonce must be re-generated with each repeated transmission.  At no point is the base nonce transmitted again in the epoch, every subsequence nonce is the base one with the current window sequence as a network order unsigned double integer (`uint64_t`) added to it.
+A unique 32 byte secret must be derived for every epoch and include the medium definition.  The additional sources for the secret depend on the context in which the epoch is used, and may range from a fixed value (for discovery), shared value (for sync), or ephemeral value (link routing tokens).  The 32 bytes are typically the binary digest output of a SHA-256 calculation of the combined sources.
 
-### Payload Types
+The nonce input is always the epoch's current window sequence encoded as a network order unsigned double integer (`uint64_t`) 8 bytes.
 
-Since a payload is always encrypted and there are no framing bytes transmitted, the only way to determine different types of payloads is through the context of the epoch itself.
+### Epoch Types
 
-There are currently three different types of epochs defined:
+There are currently five different types of epochs defined:
 
-* `SYNC` - used for synchronization signalling
-* `INIT` - only used to send initial encrypted handshakes to establish a new link
+* `PING` - only for ad-hoc discovery mode
+* `SYNC` - only for synchronization signals
+* `BASE` - only used for one-time creation of an `INIT`
+* `INIT` - only used to send initial handshakes to establish a new link
 * `LINK` - encrypted telehash packets for an established link
+
+### PING (discovery)
+
+When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to bootstrap mote keys and time sync, a special temporary discovery mode may be enabled on any existing mote to assist.  Both motes must have the same discovery medium and secret for this process to work.
+
+The discovery epoch is used as a `PING` for both motes, with each of them transmitting their ping knocks containing offers.  Since they will both be using the same PHY channel, if possible they should first listen for a transmission in progress before sending another offer to minimize interference.
+
+The discovery ping knocks must always have a random 64 byte payload.  It is also always set to window sequence 0 so that the PHY is stable since the time of the windowing is not.
+
+Once one ping knock has been both sent and received the mote may then derive a compatible `BASE` epoch and send a knock on it or listen for other base knocks.
+
+Upon receiving any `BASE` knock the mote should immediately create the pair of `INIT` epochs and begin sending/receiving unencrypted handshakes until a `LINK` epoch is established.
+
+This functionality should not be enabled/deployed by default, it should only be used when management policy explicitly requires it for special/public use cases or temporary pairing/provisioning setup.
 
 ### SYNC Epochs
 
-The synchronization process requires a shared or commonly configured source of sync epoch IDs or out of band mechanism for exchanging them dynamically.  A `SYNC` epoch only assists with background synchronization and establishment of a unique one-time `INIT` epoch for the handshaking process.
+The synchronization process requires a shared or commonly configured source of sync mediums or out of band mechanism for exchanging them dynamically.  A `SYNC` epoch only assists with background synchronization and establishment of a unique one-time `BASE` epoch and pair of `INIT` epochs for the handshaking process.
 
-With every sync knock one or more motes may be receiving and transmitting at the same time on the same epoch increasing the risk of interference, so they are only used as strictly necessary and as infrequently as possible.
+The secret for a sync epoch is typically derived from the medium and the mote's hashname as sources so that any mote in the mesh can look for sync knocks.
 
-Each sync knock is always set to window sequence 0 so that the PHY is stable since the time of the windowing is not, the payload always includes the prefixed 8 nonce base bytes. The encrypted payload of 56 bytes contains:
+Each sync knock is always set to window sequence 0 so that the PHY is stable since the time of the windowing is not.
 
-* `0..3` Cipher Sets supported (optional, up to 4 ordered CSIDs)
-* `4..7` random seed (4 bytes)
-* `8..15` header offer 1 (required)
-* `16..23` header offer 2 (optional)
-* `24..31` header offer 3 (optional)
-* `32..39` header offer 4 (optional)
-* `40..47` header offer 5 (optional)
-* `48..55` header offer 6 (optional)
-
-When a sync knock has been received and processed, the receiving mote may decide to begin an `INIT` epoch using the received sync knock as the time base for window 0 of that new `INIT` epoch.  That new epoch ID is generated by combining the sync ID header with a footer composed of the random seeds from both a sent and received sync knock.
-
-The 4 Cipher Set IDs are only included when discovery mode is enabled, and are 0xFF bytes in all other sync knocks.
-
-#### Mesh Synchronization Epochs
-
-Every mesh or mote must define and share one or more common `mesh sync headers` that are used to generate the `SYNC` epochs that assist with background synchronization of any disconnected motes.  These headers may be common across an entire mesh, or may be uniquely defined by each mote and exchanged out of band (via a telehash path channel, for instance).
-
-The mesh sync headers (8 bytes) are always combined with the first 8 bytes of each mote's hashname to derive every mote-specific `sync epoch`.
-
-The sync mode takes advantage of the fact that every epoch makes use of a shared medium that is divided into channels, such that every sync epoch will have some overlap with other private link epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their sync epoch's (sequence 0), they should then attempt to receive a sync knock exactly one window period after the transmission.
+The sync mode takes advantage of the fact that every epoch makes use of a shared medium that is divided into channels, such that every sync epoch will have some overlap with other private link epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their sync epoch's (sequence 0), they should then attempt to receive a `BASE` knock exactly one window period after the transmission.
 
 The local leader should attempt to maximize their use of sync epoch overlapping channels to allow for fast resynchronization to them, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently. When a mote detects that it is disconnected, it should also send regular knocks on the sync epoch channels of nearby known motes.
 
+### BASE Epochs
+
+An `BASE` epoch only follows a `SYNC` (same secret) or `PING` (secret derived from sent/received ping knock payloads) and has a payload of a pair of new ephemeral `INIT` secrets, one for tx and one for rx.
+
 ### INIT Epochs
 
-An `INIT` epoch only follows a `SYNC` and is generated from the information included in it.  The header is from the sync knock and the footer combines the 4 byte seed from the sync knock with 4 bytes determined by the recipient depending on the current context between the motes.
-
-These are always private to two motes and are used for both transmit and receive between them.  The window sequence always starts at `1` since the epoch is the result of a `SYNC` and the first knock is always an accept knock that signals the acceptance of a new `INIT`.  The accept knock payload depends on the context, when discoverability is enabled it will contain the Cipher Set Key bytes padded with zeros, and during mesh synchronization it will be all 0xFF bytes.
-
-The recipient of the accept knock may then respond with one or more chunk-encoded handshakes over this epoch, which after being processed the recipient of the handshake(s) may respond with handshakes in turn.
+A pair of temporary `INIT` epochs only follow a `BASE` and are only used to send/receive chunk-encoded handshakes to establish one or more new `LINK` epochs.
 
 Any `LINK` epochs defined in the encrypted handshakes will have the same time base as the `SYNC` and begin and the correct window sequences based on that.
 
@@ -262,19 +252,7 @@ Any `LINK` epochs defined in the encrypted handshakes will have the same time ba
 
 All `LINK` epochs follow a successful `INIT` or are triggered by an out-of-band synchronization, their time base and unique epoch ID is a result of those processes.
 
-The nonce base for the epoch is always the first 8 bytes of the corresponding telehash link routing token.  All knocks are chunk-encoded encrypted telehash packets.
-
-### Discovery Mode
-
-When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to bootstrap mote keys and time sync, a special temporary discovery mode may be enabled on any existing mote to assist.  Both motes must have the same shared discovery epoch ID for this process to work.
-
-The discovery epoch ID is used as a `SYNC` for both motes, with each of them transmitting their sync knocks containing offers.  Since they will both be using the same PHY channel if possible they should first listen for a transmission in progress before sending another sync knock to minimize interference.
-
-The discovery sync knocks must always include the CSIDs supported, and the 4 byte seeds included should be randomly generated with every transmission.
-
-Once one sync knock has been both sent and received the mote may then derive a compatible `INIT` epoch and attempt to being that with an accept knock.  These accept knocks must contain the correct Cipher Set Key bytes so that the recipient mote may respond with a valid encrypted handshake.
-
-This functionality should not be enabled/deployed by default, it should only be used when management policy explicitly requires it for special/public use cases or temporary pairing/provisioning setup.
+The secret for the epoch is always derived from the corresponding telehash link routing token.  All knocks are chunk-encoded encrypted telehash packets.
 
 
 ## Mesh
@@ -297,7 +275,7 @@ The z-index also serves as a window mask for all of that mote's receiving epoch 
 * resource based routing, highest resource gets undelivered packets
 * highest leader for the whole mesh is responsible for mapping the full mesh, collecting undelivered’s and re-routing them
 * natural pooling around local resources, neighborhoods
-* when you know a link's neighbors you can calculate their knock windows and detect possible overlaps to optimize for interference
+* when you know a link's neighbors you can use their mediums active to estimate congestion/energy requirements
 
 
 # Implementation Notes
