@@ -97,7 +97,7 @@
 <t><spanx style="verb">window</spanx> - the period for a knock, 2^22 microseconds (~4.2 seconds)</t>
 <t><spanx style="verb">window sequence</spanx> - each window will change frequency/channels in a sequence</t>
 <t><spanx style="verb">epoch</spanx> - one unique set of window sequences, derived from a medium and a secret</t>
-<t><spanx style="verb">neighborhood</spanx> - the list of known nearby motes</t>
+<t><spanx style="verb">neighborhood</spanx> - the list of known nearby motes using a shared medium</t>
 <t><spanx style="verb">z-index</spanx> - the self-asserted resource level (priority) from any mote</t>
 <t><spanx style="verb">leader</spanx> - the highest z-index visible in any mote's neighborhood</t>
 </list>
@@ -138,16 +138,16 @@
 </t>
 <t>Every epoch is a unique individual encrypted session between the two motes, with a shared secret key derived directly from the medium and other sources, and nonce based on the current window sequence. All payloads are encrypted with the <eref target="http://cr.yp.to/chacha.html">ChaCha20 cipher</eref> before transmission regardless of if they are already encrypted via telehash.
 </t>
-<t>Each mote should actively make use of multiple epochs to another mote and include more efficient options to optimize the overall energy usage.  Every mote advertises their current energy resource level as a <spanx style="verb">z-index</spanx> as an additional mesh optimization strategy.
+<t>Each mote should actively make use of multiple epochs to another mote and regularly include more efficient options to optimize the overall energy usage.  Every mote advertises their current energy resource level as a <spanx style="verb">z-index</spanx> as an additional mesh optimization strategy.
 </t>
 </section>
 
 <section anchor="mesh" title="Mesh">
 <t>There is two mechanisms used for enabling a larger scale mesh network with TMesh, <spanx style="verb">neighborhoods</spanx> (MAC layer) and <spanx style="verb">routers</spanx> (telehash/app layer).
 </t>
-<t>A <spanx style="verb">neighborhood</spanx> is the automatic sharing of other motes that it has active epochs with.  Each neighbor mote is listed along with all of the mediums in use, last activity, and the signal strength for each medium.
+<t>A <spanx style="verb">neighborhood</spanx> is defined by motes using a shared medium and the automatic sharing of other motes that it has active epochs with in that medium.  Each neighbor mote hashname is listed along with time offset, last activity, z-index, and the signal strength.  A mote may be part of more than one neighborhood but does not share neighbor mote information outside of each one.
 </t>
-<t>A <spanx style="verb">router</spanx> is always the neighbor with the highest z-index, which inherits the responsibility to monitor each neighbor's neighborhood for other routers and establish direct or bridged links with them.  Any mote with a packet for a non-local hashname will send it to their router, whom will send it to the next highest router it is connected to until it reaches the highest in the mesh.  The highest resourced router is responsible for maintaining an index of all available motes/hashnames in the mesh.
+<t>A <spanx style="verb">router</spanx> is always the neighbor with the highest z-index in the local neighborhood. The router inherits the responsibility to monitor each neighbor's neighborhood for other routers and establish direct or bridged links with them.  Any mote with a packet for a non-local hashname will send it to the neighborhood router, whom will send it to the next highest router it is connected to until it reaches the highest in the full neighborhood mesh.  That highest resourced router is responsible for maintaining an index of all available motes/hashnames in the full neighborhood mesh.
 </t>
 </section>
 </section>
@@ -259,7 +259,7 @@ and indicate requirement levels for compliant TMesh implementations.
 <section anchor="mac-1" title="MAC">
 
 <section anchor="encrypted-knock-payload" title="Encrypted Knock Payload">
-<t>A unique 32 byte secret must be derived for every epoch and include the medium definition.  The additional sources for the secret depend on the context in which the epoch is used, and may range from a fixed value (for discovery), shared value (for sync), or ephemeral value (link routing tokens).  The 32 bytes are typically the binary digest output of a SHA-256 calculation of the combined sources.
+<t>A unique 32 byte secret must be derived for every epoch and include the medium definition.  The additional sources for the secret depend on the context in which the epoch is used, and may range from a well-known fixed value (for discovery), shared value (for mesh, echos), or ephemeral value (pairing, private motes).  The 32 bytes the binary digest output of a SHA-256 calculation of the combined sources.
 </t>
 <t>The nonce input is always the epoch's current window sequence encoded as a network order unsigned double integer (<spanx style="verb">uint64_t</spanx>) 8 bytes.
 </t>
@@ -270,21 +270,65 @@ and indicate requirement levels for compliant TMesh implementations.
 </t>
 <t>
 <list style="symbols">
-<t><spanx style="verb">PING</spanx> - only for ad-hoc discovery mode</t>
-<t><spanx style="verb">SYNC</spanx> - only for synchronization signals</t>
-<t><spanx style="verb">BASE</spanx> - only used for one-time creation of an <spanx style="verb">INIT</spanx></t>
-<t><spanx style="verb">INIT</spanx> - only used to send initial handshakes to establish a new link</t>
-<t><spanx style="verb">LINK</spanx> - encrypted telehash packets for an established link</t>
+<t><spanx style="verb">PING</spanx> - when detected, only used as a source to generate an echo</t>
+<t><spanx style="verb">ECHO</spanx> - only used for one-time creation of a <spanx style="verb">PAIR</spanx></t>
+<t><spanx style="verb">PAIR</spanx> - only used to send initial handshakes to establish a new link</t>
+<t><spanx style="verb">MESH</spanx> - encrypted telehash packets for an established link</t>
+<t><spanx style="verb">MOTE</spanx> - private epoch only between two motes</t>
 </list>
+</t>
+
+<section anchor="ping" title="PING">
+<t>A <spanx style="verb">PING</spanx> epoch is only used as a transmission timing signal on window sequence <spanx style="verb">0</spanx>. The payload is not used to send/receive any content and is only deciphered as a source to generate an <spanx style="verb">ECHO</spanx>.
+</t>
+<t>When two motes have a shared secret to create this type of epoch they can then use available energy to listen for a <spanx style="verb">PING</spanx> knock at any time on the given channel for sequence <spanx style="verb">0</spanx>.  When detected, the relevant <spanx style="verb">ECHO</spanx> can be generated and sent/received in the next window relative to the <spanx style="verb">PING</spanx> knock.
 </t>
 </section>
 
-<section anchor="ping-discovery" title="PING (discovery)">
+<section anchor="echo" title="ECHO">
+<t>An <spanx style="verb">ECHO</spanx> epoch is the one-time response to a detected <spanx style="verb">PING</spanx> knock and only exists to assist with the establishment of one-time <spanx style="verb">PAIR</spanx> epochs for the handshaking process.
+</t>
+<t>The secret for an <spanx style="verb">ECHO</spanx> epoch is derived from the medium and the deciphered payload of the <spanx style="verb">PING</spanx>.  For discovery the payload of a transmitted <spanx style="verb">PING</spanx> must be used as another source, whereas in a neighborhood the receiving mote's hashname is the additional source to generate the secret.
+</t>
+<t>The single <spanx style="verb">ECHO</spanx> knock is always set to window sequence <spanx style="verb">1</spanx> relative to the received <spanx style="verb">PING</spanx> at sequence <spanx style="verb">0</spanx>.
+</t>
+<t>The payload is a pair of new ephemeral <spanx style="verb">PAIR</spanx> secrets, one for tx and one for rx.
+</t>
+</section>
+
+<section anchor="pair" title="PAIR">
+<t>A pair of temporary <spanx style="verb">PAIR</spanx> epochs only follow an <spanx style="verb">ECHO</spanx> and are only used to send/receive chunk-encoded handshakes to establish a telehash link.
+</t>
+<t>Any <spanx style="verb">PAIR</spanx> epochs defined in the encrypted handshakes will have the same time base as the original <spanx style="verb">PING</spanx> and begin at the correct window sequences based on that.
+</t>
+</section>
+
+<section anchor="mesh-1" title="MESH">
+<t>All <spanx style="verb">MESH</spanx> epochs follow a successful <spanx style="verb">PAIR</spanx> or are triggered by an out-of-band synchronization, their medium, time base, and unique epoch ID are a result of those processes.
+</t>
+<t>The secret for a <spanx style="verb">MESH</spanx> epoch is always derived from the hashnames of the two motes.  All knocks are chunk-encoded encrypted telehash packets.
+</t>
+<t>When using <spanx style="verb">MESH</spanx> in a neighborhood and sharing the time offsets of neighbors, any mote can then calculate keep-out channels and times of other motes based on their shared <spanx style="verb">MESH</spanx> epochs and optimize overall medium usage.  In this way, the <spanx style="verb">MESH</spanx> epoch acts as a higher QoS path between motes.
+</t>
+</section>
+
+<section anchor="mote" title="MOTE">
+<t>A <spanx style="verb">MOTE</spanx> epoch is any privately shared and generated one between two motes.  These are created dynamically as needed to increase the bandwidth available and may have a lower QoS as they can overlap with other nearby motes.
+</t>
+<t>Every mote should continually try new <spanx style="verb">MOTE</spanx> epochs with a higher energy efficiency as a method to optimize communication, reserving the <spanx style="verb">MESH</spanx> epochs for only when the <spanx style="verb">MOTE</spanx> epochs are not performing or for higher priority packets.
+</t>
+</section>
+</section>
+</section>
+
+<section anchor="mesh-2" title="Mesh">
+
+<section anchor="discovery" title="Discovery">
 <t>When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to bootstrap mote keys and time sync, a special temporary discovery mode may be enabled on any existing mote to assist.  Both motes must have the same discovery medium and secret for this process to work.
 </t>
 <t>The discovery epoch is used as a <spanx style="verb">PING</spanx> for both motes, with each of them transmitting their ping knocks containing offers.  Since they will both be using the same PHY channel, if possible they should first listen for a transmission in progress before sending another offer to minimize interference.
 </t>
-<t>The discovery ping knocks must always have a random 64 byte payload.  It is also always set to window sequence 0 so that the PHY is stable since the time of the windowing is not.
+<t>The discovery ping knocks must always have a random 64 byte payload so that even if the secret is known, it is not possible for a third party to determine if the knock was a ping or not.  It is also always set to window sequence 0 so that the PHY is stable since the time of the windowing is not.
 </t>
 <t>Once one ping knock has been both sent and received the mote may then derive a compatible <spanx style="verb">BASE</spanx> epoch and send a knock on it or listen for other base knocks.
 </t>
@@ -294,42 +338,19 @@ and indicate requirement levels for compliant TMesh implementations.
 </t>
 </section>
 
-<section anchor="sync-epochs" title="SYNC Epochs">
-<t>The synchronization process requires a shared or commonly configured source of sync mediums or out of band mechanism for exchanging them dynamically.  A <spanx style="verb">SYNC</spanx> epoch only assists with background synchronization and establishment of a unique one-time <spanx style="verb">BASE</spanx> epoch and pair of <spanx style="verb">INIT</spanx> epochs for the handshaking process.
+<section anchor="neighborhoods" title="Neighborhoods">
+<t><list style="empty">
+<t>Describe neighborhoods and routers, and routers performing ongoing sync-mode duties.
 </t>
-<t>The secret for a sync epoch is typically derived from the medium and the mote's hashname as sources so that any mote in the mesh can look for sync knocks.
-</t>
-<t>Each sync knock is always set to window sequence 0 so that the PHY is stable since the time of the windowing is not.
-</t>
-<t>The sync mode takes advantage of the fact that every epoch makes use of a shared medium that is divided into channels, such that every sync epoch will have some overlap with other private link epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their sync epoch's (sequence 0), they should then attempt to receive a <spanx style="verb">BASE</spanx> knock exactly one window period after the transmission.
+</list></t>
+
+<section anchor="sync" title="Sync">
+<t>The sync mode takes advantage of the fact that every epoch makes use of a shared medium that is divided into channels, such that every sync epoch will have some overlap with other private link epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their <spanx style="verb">PING</spanx> epoch's (sequence 0), they should then attempt to receive an <spanx style="verb">ECHO</spanx> knock exactly one window period after the transmission.
 </t>
 <t>The local leader should attempt to maximize their use of sync epoch overlapping channels to allow for fast resynchronization to them, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently. When a mote detects that it is disconnected, it should also send regular knocks on the sync epoch channels of nearby known motes.
 </t>
 </section>
-
-<section anchor="base-epochs" title="BASE Epochs">
-<t>An <spanx style="verb">BASE</spanx> epoch only follows a <spanx style="verb">SYNC</spanx> (same secret) or <spanx style="verb">PING</spanx> (secret derived from sent/received ping knock payloads) and has a payload of a pair of new ephemeral <spanx style="verb">INIT</spanx> secrets, one for tx and one for rx.
-</t>
 </section>
-
-<section anchor="init-epochs" title="INIT Epochs">
-<t>A pair of temporary <spanx style="verb">INIT</spanx> epochs only follow a <spanx style="verb">BASE</spanx> and are only used to send/receive chunk-encoded handshakes to establish one or more new <spanx style="verb">LINK</spanx> epochs.
-</t>
-<t>Any <spanx style="verb">LINK</spanx> epochs defined in the encrypted handshakes will have the same time base as the <spanx style="verb">SYNC</spanx> and begin and the correct window sequences based on that.
-</t>
-</section>
-
-<section anchor="link-epochs" title="LINK Epochs">
-<t>All <spanx style="verb">LINK</spanx> epochs follow a successful <spanx style="verb">INIT</spanx> or are triggered by an out-of-band synchronization, their time base and unique epoch ID is a result of those processes.
-</t>
-<t>The secret for the epoch is always derived from the corresponding telehash link routing token.  All knocks are chunk-encoded encrypted telehash packets.
-</t>
-</section>
-</section>
-
-<section anchor="mesh-1" title="Mesh">
-<t>Describe neighborhoods and routers, and routers performing ongoing sync-mode duties.
-</t>
 
 <section anchor="zindex" title="z-index">
 <t>Every mote calculates its own <spanx style="verb">z-index</spanx>, a uint8_t value that represents the resources it has available to assist with the mesh.  It will vary based on the battery level or fixed power, as well as if the mote has greater network access (is an internet bridge) or is well located (based on configuration).
@@ -337,6 +358,11 @@ and indicate requirement levels for compliant TMesh implementations.
 <t>The mote with the highest <spanx style="verb">z-index</spanx> in any neighborhood is known as the <spanx style="verb">local leader</spanx>.
 </t>
 <t>The z-index also serves as a window mask for all of that mote's receiving epoch windows by powers of two.
+</t>
+</section>
+
+<section anchor="neighborhood-map" title="Neighborhood Map">
+<t>Each mote should share enough detail about its neighborhood with every neighbor so that a map can be built.  This includes the relative sync time of each epoch and the current routing token in use, such that a neighbor can predict when a mote will be listening or may be transmitting to another nearby mote.
 </t>
 </section>
 </section>
