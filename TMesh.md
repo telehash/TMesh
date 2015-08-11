@@ -71,7 +71,7 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 * `window` - the period for a knock, 2^22 microseconds (~4.2 seconds)
 * `window sequence` - each window will change frequency/channels in a sequence
 * `epoch` - one unique set of window sequences, derived from a medium and a secret
-* `neighborhood` - the list of known nearby motes
+* `neighborhood` - the list of known nearby motes using a shared medium
 * `z-index` - the self-asserted resource level (priority) from any mote
 * `leader` - the highest z-index visible in any mote's neighborhood
 
@@ -107,15 +107,15 @@ There is no mote addressing or other metadata included in the transmitted bytes,
 
 Every epoch is a unique individual encrypted session between the two motes, with a shared secret key derived directly from the medium and other sources, and nonce based on the current window sequence. All payloads are encrypted with the [ChaCha20 cipher](http://cr.yp.to/chacha.html) before transmission regardless of if they are already encrypted via telehash.
 
-Each mote should actively make use of multiple epochs to another mote and include more efficient options to optimize the overall energy usage.  Every mote advertises their current energy resource level as a `z-index` as an additional mesh optimization strategy.
+Each mote should actively make use of multiple epochs to another mote and regularly include more efficient options to optimize the overall energy usage.  Every mote advertises their current energy resource level as a `z-index` as an additional mesh optimization strategy.
 
 ### Mesh
 
 There is two mechanisms used for enabling a larger scale mesh network with TMesh, `neighborhoods` (MAC layer) and `routers` (telehash/app layer).
 
-A `neighborhood` is the automatic sharing of other motes that it has active epochs with.  Each neighbor mote is listed along with all of the mediums in use, last activity, and the signal strength for each medium.
+A `neighborhood` is defined by motes using a shared medium and the automatic sharing of other motes that it has active epochs with in that medium.  Each neighbor mote hashname is listed along with time offset, last activity, z-index, and the signal strength.  A mote may be part of more than one neighborhood but does not share neighbor mote information outside of each one.
 
-A `router` is always the neighbor with the highest z-index, which inherits the responsibility to monitor each neighbor's neighborhood for other routers and establish direct or bridged links with them.  Any mote with a packet for a non-local hashname will send it to their router, whom will send it to the next highest router it is connected to until it reaches the highest in the mesh.  The highest resourced router is responsible for maintaining an index of all available motes/hashnames in the mesh.
+A `router` is always the neighbor with the highest z-index in the local neighborhood. The router inherits the responsibility to monitor each neighbor's neighborhood for other routers and establish direct or bridged links with them.  Any mote with a packet for a non-local hashname will send it to the neighborhood router, whom will send it to the next highest router it is connected to until it reaches the highest in the full neighborhood mesh.  That highest resourced router is responsible for maintaining an index of all available motes/hashnames in the full neighborhood mesh.
 
 
 # Protocol Definition
@@ -198,7 +198,7 @@ Notes on ranges:
 
 ### Encrypted Knock Payload
 
-A unique 32 byte secret must be derived for every epoch and include the medium definition.  The additional sources for the secret depend on the context in which the epoch is used, and may range from a fixed value (for discovery), shared value (for sync), or ephemeral value (link routing tokens).  The 32 bytes are typically the binary digest output of a SHA-256 calculation of the combined sources.
+A unique 32 byte secret must be derived for every epoch and include the medium definition.  The additional sources for the secret depend on the context in which the epoch is used, and may range from a well-known fixed value (for discovery), shared value (for mesh, echos), or ephemeral value (pairing, private motes).  The 32 bytes the binary digest output of a SHA-256 calculation of the combined sources.
 
 The nonce input is always the epoch's current window sequence encoded as a network order unsigned double integer (`uint64_t`) 8 bytes.
 
@@ -212,7 +212,46 @@ There are currently five different types of epochs defined:
 * `MESH` - encrypted telehash packets for an established link
 * `MOTE` - private epoch only between two motes
 
-### PING (discovery)
+#### PING
+
+A `PING` epoch is only used as a transmission timing signal on window sequence `0`. The payload is not used to send/receive any content and is only deciphered as a source to generate an `ECHO`.
+
+When two motes have a shared secret to create this type of epoch they can then use available energy to listen for a `PING` knock at any time on the given channel for sequence `0`.  When detected, the relevant `ECHO` can be generated and sent/received in the next window relative to the `PING` knock.
+
+#### ECHO
+
+An `ECHO` epoch is the one-time response to a detected `PING` knock and only exists to assist with the establishment of one-time `PAIR` epochs for the handshaking process.
+
+The secret for an `ECHO` epoch is derived from the medium and the deciphered payload of the `PING`.  For discovery the payload of a transmitted `PING` must be used as another source, whereas in a neighborhood the receiving mote's hashname is the additional source to generate the secret.
+
+The single `ECHO` knock is always set to window sequence `1` relative to the received `PING` at sequence `0`.
+
+The payload is a pair of new ephemeral `PAIR` secrets, one for tx and one for rx.
+
+#### PAIR
+
+A pair of temporary `PAIR` epochs only follow an `ECHO` and are only used to send/receive chunk-encoded handshakes to establish a telehash link.
+
+Any `PAIR` epochs defined in the encrypted handshakes will have the same time base as the original `PING` and begin at the correct window sequences based on that.
+
+#### MESH 
+
+All `MESH` epochs follow a successful `PAIR` or are triggered by an out-of-band synchronization, their medium, time base, and unique epoch ID are a result of those processes.
+
+The secret for a `MESH` epoch is always derived from the hashnames of the two motes.  All knocks are chunk-encoded encrypted telehash packets.
+
+When using `MESH` in a neighborhood and sharing the time offsets of neighbors, any mote can then calculate keep-out channels and times of other motes based on their shared `MESH` epochs and optimize overall medium usage.  In this way, the `MESH` epoch acts as a higher QoS path between motes.
+
+#### MOTE
+
+A `MOTE` epoch is any privately shared and generated one between two motes.  These are created dynamically as needed to increase the bandwidth available and may have a lower QoS as they can overlap with other nearby motes.
+
+Every mote should continually try new `MOTE` epochs with a higher energy efficiency as a method to optimize communication, reserving the `MESH` epochs for only when the `MOTE` epochs are not performing or for higher priority packets.
+
+
+## Mesh
+
+### Discovery
 
 When a new un-linked mote must be introduced directly into a mesh and there is no out-of-band mechanism to bootstrap mote keys and time sync, a special temporary discovery mode may be enabled on any existing mote to assist.  Both motes must have the same discovery medium and secret for this process to work.
 
@@ -226,38 +265,16 @@ Upon receiving any `BASE` knock the mote should immediately create the pair of `
 
 This functionality should not be enabled/deployed by default, it should only be used when management policy explicitly requires it for special/public use cases or temporary pairing/provisioning setup.
 
-### SYNC Epochs
+### Neighborhoods
 
-The synchronization process requires a shared or commonly configured source of sync mediums or out of band mechanism for exchanging them dynamically.  A `SYNC` epoch only assists with background synchronization and establishment of a unique one-time `BASE` epoch and pair of `INIT` epochs for the handshaking process.
+> Describe neighborhoods and routers, and routers performing ongoing sync-mode duties.
 
-The secret for a sync epoch is typically derived from the medium and the mote's hashname as sources so that any mote in the mesh can look for sync knocks.
+#### Sync
 
-Each sync knock is always set to window sequence 0 so that the PHY is stable since the time of the windowing is not.
-
-The sync mode takes advantage of the fact that every epoch makes use of a shared medium that is divided into channels, such that every sync epoch will have some overlap with other private link epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their sync epoch's (sequence 0), they should then attempt to receive a `BASE` knock exactly one window period after the transmission.
+The sync mode takes advantage of the fact that every epoch makes use of a shared medium that is divided into channels, such that every sync epoch will have some overlap with other private link epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their `PING` epoch's (sequence 0), they should then attempt to receive an `ECHO` knock exactly one window period after the transmission.
 
 The local leader should attempt to maximize their use of sync epoch overlapping channels to allow for fast resynchronization to them, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently. When a mote detects that it is disconnected, it should also send regular knocks on the sync epoch channels of nearby known motes.
 
-### BASE Epochs
-
-An `BASE` epoch only follows a `SYNC` (same secret) or `PING` (secret derived from sent/received ping knock deciphered payloads) and has a payload of a pair of new ephemeral `INIT` secrets, one for tx and one for rx.
-
-### INIT Epochs
-
-A pair of temporary `INIT` epochs only follow a `BASE` and are only used to send/receive chunk-encoded handshakes to establish one or more new `LINK` epochs.
-
-Any `LINK` epochs defined in the encrypted handshakes will have the same time base as the `SYNC` and begin and the correct window sequences based on that.
-
-### LINK Epochs
-
-All `LINK` epochs follow a successful `INIT` or are triggered by an out-of-band synchronization, their time base and unique epoch ID is a result of those processes.
-
-The secret for the epoch is always derived from the corresponding telehash link routing token.  All knocks are chunk-encoded encrypted telehash packets.
-
-
-## Mesh
-
-Describe neighborhoods and routers, and routers performing ongoing sync-mode duties.
 
 ### z-index
 
