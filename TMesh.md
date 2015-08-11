@@ -206,11 +206,11 @@ The nonce input is always the epoch's current window sequence encoded as a netwo
 
 There are currently five different types of epochs defined:
 
-* `PING` - only for ad-hoc discovery mode
-* `SYNC` - only for synchronization signals
-* `BASE` - only used for one-time creation of an `INIT`
-* `INIT` - only used to send initial handshakes to establish a new link
-* `LINK` - encrypted telehash packets for an established link
+* `PING` - when detected, only used as a source to generate an echo
+* `ECHO` - only used for one-time creation of a `PAIR`
+* `PAIR` - only used to send initial handshakes to establish a new link
+* `MESH` - encrypted telehash packets for an established link
+* `MOTE` - private epoch only between two motes
 
 ### PING (discovery)
 
@@ -218,7 +218,7 @@ When a new un-linked mote must be introduced directly into a mesh and there is n
 
 The discovery epoch is used as a `PING` for both motes, with each of them transmitting their ping knocks containing offers.  Since they will both be using the same PHY channel, if possible they should first listen for a transmission in progress before sending another offer to minimize interference.
 
-The discovery ping knocks must always have a random 64 byte payload.  It is also always set to window sequence 0 so that the PHY is stable since the time of the windowing is not.
+The discovery ping knocks must always have a random 64 byte payload so that even if the secret is known, it is not possible for a third party to determine if the knock was a ping or not.  It is also always set to window sequence 0 so that the PHY is stable since the time of the windowing is not.
 
 Once one ping knock has been both sent and received the mote may then derive a compatible `BASE` epoch and send a knock on it or listen for other base knocks.
 
@@ -240,7 +240,7 @@ The local leader should attempt to maximize their use of sync epoch overlapping 
 
 ### BASE Epochs
 
-An `BASE` epoch only follows a `SYNC` (same secret) or `PING` (secret derived from sent/received ping knock payloads) and has a payload of a pair of new ephemeral `INIT` secrets, one for tx and one for rx.
+An `BASE` epoch only follows a `SYNC` (same secret) or `PING` (secret derived from sent/received ping knock deciphered payloads) and has a payload of a pair of new ephemeral `INIT` secrets, one for tx and one for rx.
 
 ### INIT Epochs
 
@@ -266,6 +266,10 @@ Every mote calculates its own `z-index`, a uint8_t value that represents the res
 The mote with the highest `z-index` in any neighborhood is known as the `local leader`.
 
 The z-index also serves as a window mask for all of that mote's receiving epoch windows by powers of two.
+
+### Neighborhood Map
+
+Each mote should share enough detail about its neighborhood with every neighbor so that a map can be built.  This includes the relative sync time of each epoch and the current routing token in use, such that a neighbor can predict when a mote will be listening or may be transmitting to another nearby mote.
 
 ## Notes
 
