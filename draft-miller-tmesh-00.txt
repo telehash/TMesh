@@ -66,27 +66,27 @@ Table of Contents
      1.4.  Overview . . . . . . . . . . . . . . . . . . . . . . . . .  5
        1.4.1.  PHY  . . . . . . . . . . . . . . . . . . . . . . . . .  5
        1.4.2.  MAC  . . . . . . . . . . . . . . . . . . . . . . . . .  6
-       1.4.3.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . .  6
+       1.4.3.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . .  7
    2.  Protocol Definition  . . . . . . . . . . . . . . . . . . . . .  7
      2.1.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  7
      2.2.  PHY  . . . . . . . . . . . . . . . . . . . . . . . . . . .  7
        2.2.1.  Private Hopping Sequence . . . . . . . . . . . . . . .  7
        2.2.2.  Medium Types . . . . . . . . . . . . . . . . . . . . .  8
-     2.3.  MAC  . . . . . . . . . . . . . . . . . . . . . . . . . . .  9
-       2.3.1.  Encrypted Knock Payload  . . . . . . . . . . . . . . .  9
+     2.3.  MAC  . . . . . . . . . . . . . . . . . . . . . . . . . . . 10
+       2.3.1.  Encrypted Knock Payload  . . . . . . . . . . . . . . . 10
        2.3.2.  Epochs . . . . . . . . . . . . . . . . . . . . . . . . 10
      2.4.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
        2.4.1.  z-index  . . . . . . . . . . . . . . . . . . . . . . . 11
-       2.4.2.  Neighbors  . . . . . . . . . . . . . . . . . . . . . . 11
-       2.4.3.  Private Community  . . . . . . . . . . . . . . . . . . 11
-       2.4.4.  Public Community . . . . . . . . . . . . . . . . . . . 12
-       2.4.5.  Direct Connection  . . . . . . . . . . . . . . . . . . 13
-       2.4.6.  Optimizations  . . . . . . . . . . . . . . . . . . . . 13
-   3.  Implementation Notes . . . . . . . . . . . . . . . . . . . . . 13
+       2.4.2.  Neighbors  . . . . . . . . . . . . . . . . . . . . . . 12
+       2.4.3.  Communities  . . . . . . . . . . . . . . . . . . . . . 12
+       2.4.4.  Optimizations  . . . . . . . . . . . . . . . . . . . . 14
+   3.  Implementation Notes . . . . . . . . . . . . . . . . . . . . . 14
    4.  Security Considerations  . . . . . . . . . . . . . . . . . . . 14
    5.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 14
-   Appendix A.  Examples  . . . . . . . . . . . . . . . . . . . . . . 14
-   Author's Address . . . . . . . . . . . . . . . . . . . . . . . . . 14
+   Appendix A.  Examples  . . . . . . . . . . . . . . . . . . . . . . 15
+   Author's Address . . . . . . . . . . . . . . . . . . . . . . . . . 15
+
+
 
 
 
@@ -236,7 +236,7 @@ Internet-Draft                    tmesh                         May 2015
 
    TMesh is the composite of three distinct layers, the physical radio
    medium encoding (PHY), the shared management of the spectrum (MAC),
-   and the networking relationships between 2+ motes (Mesh).
+   and the networking relationships between 2 or more motes (Mesh).
 
    Common across all of these is the concept of an "epoch", which is a
    generated set of unique window sequences shared between two motes in
@@ -254,25 +254,25 @@ Internet-Draft                    tmesh                         May 2015
 
    The number and types of epochs available depend entirely on the
    current energy budget, every epoch type has a fixed minimum energy
-   cost per window to send/receive based on the medium settings.
+   cost per window to send/receive based on the medium definition.
 
-   A community is simply the overall set of motes that have both minimum
-   trust in each other are using a common medium to facilitate larger
-   scale mesh routing.  Within any community, the motes that can
-   directly communicate over an epoch are called neighbors, and any
-   neighbor that has a higher z-index is always considered the current
-   leader and may have additional responsibilities.
+   A community is any set of motes that are using a common medium
+   definition and have enough trust to establish a telehash link for
+   sharing peer motes and act as a router to facilitate larger scale
+   meshing.  Within any community, the motes that can directly
+   communicate over an epoch are called neighbors, and any neighbor that
+   has a higher z-index is always considered the current leader and may
+   have additional responsibilities.
 
 1.4.1.  PHY
 
-   A "medium" is defined with 6 bytes that specify the type and exact
-   PHY encoding details.  The 6 bytes are often encoded as 10 base32
+   A "medium" is defined by 5 bytes that specify the PHY type and exact
+   encoding details.  The 5 bytes are always string encoded as 8 base32
    characters for ease of use in JSON and configuration storage.
 
-   The first byte is a fixed "type" that determines the category of PHY
-   encoding technique to use, typically these are different modes on
-   transceivers or different drivers entirely.
-
+   The first byte is the primary "type" that determines if the medium is
+   for a public or private community and the overall category of PHY
+   encoding technique to use.  The first/high bit of 0 (byte values from
 
 
 
@@ -281,10 +281,14 @@ Miller                  Expires November 17, 2015               [Page 5]
 Internet-Draft                    tmesh                         May 2015
 
 
-   Each PHY driver uses the second through sixth medium bytes to
+   0-127) is for public communities, and a bit of 1 (values from 128-
+   255) is for private ones.  The other bits in the "type" map directly
+   to different PHY modes on transceivers or different drivers entirely.
+
+   Each PHY driver uses the second through fifth medium bytes to
    determine the power, frequency range, number of channels, spreading,
    bitrate, error correction usage, regulatory requirements, channel
-   dwell time, etc details on the transmission/reception.  The actual
+   dwell time, etc details on the transmission/reception.  The dynamic
    channel frequency hopping and transmission window timing are derived
    from the full epoch and not included in the medium.
 
@@ -324,11 +328,7 @@ Internet-Draft                    tmesh                         May 2015
    energy usage.  Every mote advertises their current energy resource
    level as a "z-index" as an additional mesh optimization strategy.
 
-1.4.3.  Mesh
 
-   There is two mechanisms used for enabling a larger scale mesh network
-   with TMesh, "communities" (MAC layer) and "routers" (telehash/app
-   layer).
 
 
 
@@ -336,6 +336,12 @@ Miller                  Expires November 17, 2015               [Page 6]
 
 Internet-Draft                    tmesh                         May 2015
 
+
+1.4.3.  Mesh
+
+   There is two mechanisms used for enabling a larger scale mesh network
+   with TMesh, "communities" (MAC layer) and "routers" (telehash/app
+   layer).
 
    A "community" is defined by motes using a shared medium and the
    automatic sharing of other neighboring motes that it has active
@@ -380,12 +386,6 @@ Internet-Draft                    tmesh                         May 2015
    inputs, these are generated from the epoch's 32 byte secret via a
    consistent transformation.
 
-   An eight byte null/zero pad is encrypted with the current epoch
-   secret/nonce for each window and the ciphertext result is used for
-   channel selection and window timing.
-
-   The first two bytes of the ciphertext result is used for channel
-
 
 
 Miller                  Expires November 17, 2015               [Page 7]
@@ -393,6 +393,11 @@ Miller                  Expires November 17, 2015               [Page 7]
 Internet-Draft                    tmesh                         May 2015
 
 
+   An eight byte null/zero pad is encrypted with the current epoch
+   secret/nonce for each window and the ciphertext result is used for
+   channel selection and window timing.
+
+   The first two bytes of the ciphertext result is used for channel
    selection as a network order unsigned short integer.  The 2^16 total
    possible channels are simply mod'd to the number of usable channels
    based on the current medium.  If there are 50 channels, it would be
@@ -408,17 +413,24 @@ Internet-Draft                    tmesh                         May 2015
 
 2.2.2.  Medium Types
 
-   Medium type table:
+   Medium "type" byte table:
 
-                            +------+----------+
-                            | Byte | Encoding |
-                            +------+----------+
-                            | 0x00 | Reserved |
-                            | 0x01 |    OOK   |
-                            | 0x02 |  (G)FSK  |
-                            | 0x03 |   LoRa   |
-                            | 0x04 |  (O)QPSK |
-                            +------+----------+
+                        +------------+-----------+
+                        |    Bit 7   | Community |
+                        +------------+-----------+
+                        | 0b0xxxxxxx |   Public  |
+                        | 0b1xxxxxxx |  Private  |
+                        +------------+-----------+
+
+                         +------------+----------+
+                         |  Bits 6-0  | Encoding |
+                         +------------+----------+
+                         | 0bx0000000 | Reserved |
+                         | 0bx0000001 |    OOK   |
+                         | 0bx0000010 |  (G)FSK  |
+                         | 0bx0000011 |   LoRa   |
+                         | 0bx0000100 |  (O)QPSK |
+                         +------------+----------+
 
 2.2.2.1.  OOK
 
@@ -427,6 +439,15 @@ Internet-Draft                    tmesh                         May 2015
 2.2.2.2.  (G)FSK
 
       TBD
+
+
+
+
+
+Miller                  Expires November 17, 2015               [Page 8]
+
+Internet-Draft                    tmesh                         May 2015
+
 
 2.2.2.3.  LoRa
 
@@ -439,17 +460,6 @@ Internet-Draft                    tmesh                         May 2015
    o  byte 4 - Bw & CodingRate (RegModemConfig 1)
 
    o  byte 5 - SpreadingFactor (RegModemConfig 2)
-
-
-
-
-
-Miller                  Expires November 17, 2015               [Page 8]
-
-Internet-Draft                    tmesh                         May 2015
-
-
-   o  byte 6 - reserved
 
    All preambles are set to the minimum size of 6.
 
@@ -483,20 +493,10 @@ Internet-Draft                    tmesh                         May 2015
 
       TBD
 
-2.3.  MAC
 
-2.3.1.  Encrypted Knock Payload
 
-   A unique 32 byte secret must be derived for every epoch and include
-   the medium definition.  The additional sources for the secret depend
-   on the context in which the epoch is used, and may range from a well-
-   known fixed value (for public communities), shared value (for private
-   communities), or ephemeral value (for direct connections).  The 32
-   bytes are the binary digest output of a SHA-256 calculation of the
-   concatenated source inputs for the secret.
 
-   The nonce input is always the epoch's current window sequence encoded
-   as a network order unsigned double integer ("uint64_t") 8 bytes.
+
 
 
 
@@ -504,6 +504,30 @@ Miller                  Expires November 17, 2015               [Page 9]
 
 Internet-Draft                    tmesh                         May 2015
 
+
+2.3.  MAC
+
+2.3.1.  Encrypted Knock Payload
+
+   A unique 32 byte secret must be derived for every epoch and include
+   the medium definition.  The 32 bytes are the binary digest output of
+   multiple SHA-256 calculations of source data from the community and
+   hashnames.  The first digest is generated from the medium (5 bytes),
+   that output is combined with the community name (string) for a second
+   digest.
+
+   For public communities this second digest is the secret for the
+   "PING" epoch that is shared and known by all members.  For private
+   communities it is combined with a member's hashname (32 bytes) for a
+   final digest that is the secret for the "PING" epoch unique to each
+   member.  With direct communities the other member's hashname is also
+   combined and a final (fourth) digest is the secret unique to that
+   community and pair of members.
+
+   The nonce input is always the epoch's current window sequence encoded
+   as a network order unsigned double integer ("uint64_t") 8 bytes.
+   This provides an additional guarantee against replay or delay attacks
+   as the ciphertext is invalid outside of a window.
 
 2.3.2.  Epochs
 
@@ -529,6 +553,14 @@ Internet-Draft                    tmesh                         May 2015
 
    When two motes have a shared secret to create this type of epoch they
    can then use available energy to listen for a "PING" knock at any
+
+
+
+Miller                  Expires November 17, 2015              [Page 10]
+
+Internet-Draft                    tmesh                         May 2015
+
+
    time on the given channel for sequence "0".  When detected, the
    relevant "ECHO" can be generated and sent/received in the next window
    relative to the "PING" knock.
@@ -550,16 +582,6 @@ Internet-Draft                    tmesh                         May 2015
 
    The payload is a pair of new ephemeral "PAIR" secrets, one for tx and
    one for rx.
-
-
-
-
-
-
-Miller                  Expires November 17, 2015              [Page 10]
-
-Internet-Draft                    tmesh                         May 2015
-
 
 2.3.2.3.  PAIR
 
@@ -587,6 +609,14 @@ Internet-Draft                    tmesh                         May 2015
 
    Every mote calculates its own "z-index", a uint8_t value that
    represents the resources it has available to assist with the mesh.
+
+
+
+Miller                  Expires November 17, 2015              [Page 11]
+
+Internet-Draft                    tmesh                         May 2015
+
+
    It will vary based on the battery level or fixed power, as well as if
    the mote has greater network access (is an internet bridge) or is
    well located (based on configuration).
@@ -605,33 +635,51 @@ Internet-Draft                    tmesh                         May 2015
    neighbor can predict when a mote will be listening or may be
    transmitting to another nearby mote.
 
-2.4.3.  Private Community
+2.4.3.  Communities
+
+      Describe communities and routing in more detail, and routers
+      performing ongoing sync-mode duties.
+
+   A community is defined as a single medium and a string name, both of
+   which must be known to join that community.  They are the primary
+   mechanism to manage and organize motes based on available spectrum
+   and energy, where each community is bound to a single medium with
+   predictable energy usage and available capacity.
+
+   Any mesh may make use of multiple communities to optimize the overall
+   availability and reliability, but different communities are not a
+   trust or secure grouping mechanism, the medium and name are not
+   considered secrets.
+
+2.4.3.1.  Private Community
 
    A private community is not visible to any non-member, other than
    randomly timed knock transmissions on random channels there is no
-
-
-
-Miller                  Expires November 17, 2015              [Page 11]
-
-Internet-Draft                    tmesh                         May 2015
-
-
    decodeable signals detectable to any third party, it is a dark mesh
    network that can only be joined via out of band coordination and
    explicit mesh membership trust.
 
    In order for any mote to join a private community it must first have
-   at a minimum the hashname of one or more of the current leaders of
-   that community and the medium on which it is operating.
+   at a minimum the community name, the hashname of one or more of the
+   current leaders of that community, and the medium on which it is
+   operating.
 
    It must also have either it's own hashname independently added as a
-   trusted member to the leader(s), or have a handshake that will verify
-   its membership and be accepted by a leader.
 
-   Given these three things (a leader hashname, the medium, and
-   authorization) it can then calculate the "PING" epoch and listen for
-   a knock in that epoch.  This takes advantage of the fact that the
+
+
+Miller                  Expires November 17, 2015              [Page 12]
+
+Internet-Draft                    tmesh                         May 2015
+
+
+   trusted member to the leader(s), or have a handshake that will verify
+   its mesh membership and be accepted by a leader.
+
+   The three sources of a hashname (32 bytes), the medium (5 bytes), and
+   community name (string) are combined in that order and the SHA-256
+   digest is generated as the secret for the "PING" epoch. and listen
+   for a knock in that epoch.  This takes advantage of the fact that the
    community medium is divided into the same set of channels, such that
    every "PING" epoch will have some overlap with other community epochs
    that a mote is transmitting on.  When any mote sends any knock that
@@ -648,10 +696,7 @@ Internet-Draft                    tmesh                         May 2015
    community it should also send regular knocks on the sync epoch
    channels of last-known nearby motes.
 
-      Describe communities and routing in more detail, and routers
-      performing ongoing sync-mode duties.
-
-2.4.4.  Public Community
+2.4.3.2.  Public Community
 
    A public community is inherently visibile to any mote and should only
    be used for well-known or shared open services where the existince of
@@ -660,21 +705,14 @@ Internet-Draft                    tmesh                         May 2015
    be used minimally and only with ephemeral generated hashnames when
    possible.
 
-   The public community is defined only by a common medium and secret,
-   where the secret is the SHA-256 digest of a public community name
-   string.  These are the inputs to create a "PING" epoch that a joining
-   mote must both listen for and repeatedly transmit knocks on until an
-   "ECHO" is received.  Since they will both be using the same medium
-
-
-
-Miller                  Expires November 17, 2015              [Page 12]
-
-Internet-Draft                    tmesh                         May 2015
-
-
-   channel, if possible a mote should first listen for a transmission in
-   progress before sending another knock to minimize interference.
+   The public community is defined only by the common medium and name,
+   where the secret is the SHA-256 digest of the medium (5 bytes) and
+   the name string.  These are the inputs to create a "PING" epoch that
+   a joining mote must both listen for and repeatedly transmit knocks on
+   until an "ECHO" is received.  Since they will both be using the same
+   medium channel, if possible a mote should first listen for a
+   transmission in progress before sending another knock to minimize
+   interference.
 
    The "PING" knocks must always have a random 64 byte payload so that
    even if the secret is known, it is not possible for a third party to
@@ -683,6 +721,13 @@ Internet-Draft                    tmesh                         May 2015
    Once one "PING" knock has been both sent and received the mote may
    then derive an "ECHO" epoch and send a knock on it and listen for
    other "ECHO" knocks.
+
+
+
+Miller                  Expires November 17, 2015              [Page 13]
+
+Internet-Draft                    tmesh                         May 2015
+
 
    Upon receiving any "ECHO" knock the mote should immediately create
    the "PAIR" epochs and begin sending/receiving a single _unencrypted_
@@ -693,20 +738,7 @@ Internet-Draft                    tmesh                         May 2015
    should only be used when management policy explicitly requires it for
    special/public use cases or temporary pairing/provisioning setup.
 
-2.4.5.  Direct Connection
-
-   Once two motes are linked through a community or another OOB
-   mechanism they may generate and exchange direct epochs with ephemeral
-   secrets known only to them.  These are created dynamically as needed
-   to increase the bandwidth available between motes and may have a
-   lower QoS as they can overlap with other nearby motes.
-
-   Every mote should continually try new direct epochs with a higher
-   energy efficiency as a method to optimize communication, reserving
-   the community epochs for only when the direct epochs are not
-   performing or for higher priority packets.
-
-2.4.6.  Optimizations
+2.4.4.  Optimizations
 
    Since a community includes the automated sharing the time offsets of
    neighbors, any mote can then calculate keep-out channels/timing of
@@ -721,12 +753,8 @@ Internet-Draft                    tmesh                         May 2015
    o  if a packet chunk is incomplete in one window, prioritize
       subsequent windows from that mote
 
-
-
-
-Miller                  Expires November 17, 2015              [Page 13]
-
-Internet-Draft                    tmesh                         May 2015
+   o  prioritize different communities based on their energy
+      performance, test more efficient ones dynamically
 
 
 4.  Security Considerations
@@ -748,6 +776,14 @@ URIs
    [5]  <http://image.slidesharecdn.com/
         smarthometechshort-13304126815608-phpapp01-120228010616-
         phpapp01/95/smart-home-tech-short-14-728.jpg>
+
+
+
+
+Miller                  Expires November 17, 2015              [Page 14]
+
+Internet-Draft                    tmesh                         May 2015
+
 
    [6]  <http://blog.atmel.com/2013/04/23/
         praise-the-lord-a-new-sub-1ghz-rf-transceiver-supporting-4-
@@ -780,5 +816,25 @@ Author's Address
 
 
 
-Miller                  Expires November 17, 2015              [Page 14]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Miller                  Expires November 17, 2015              [Page 15]
 
