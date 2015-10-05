@@ -90,11 +90,11 @@ A community is any set of motes that are using a common medium definition and ha
 
 ### PHY
 
-A `medium` is defined with 6 bytes that specify the type and exact PHY encoding details.  The 6 bytes are often encoded as 10 base32 characters for ease of use in JSON and configuration storage.
+A `medium` is defined by 5 bytes that specify the PHY type and exact encoding details.  The 5 bytes are always string encoded as 8 base32 characters for ease of use in JSON and configuration storage.
 
-The first byte is a fixed `type` that determines the category of PHY encoding technique to use, typically these are different modes on transceivers or different drivers entirely.
+The first byte is the primary `type` that determines if the medium is for a public or private community and the overall category of PHY encoding technique to use.  The first/high bit of 0 (byte values from 0-127) is for public communities, and a bit of 1 (values from 128-255) is for private ones.  The other bits in the `type` map directly to different PHY modes on transceivers or different drivers entirely.
 
-Each PHY driver uses the second through sixth medium bytes to determine the power, frequency range, number of channels, spreading, bitrate, error correction usage, regulatory requirements, channel dwell time, etc details on the transmission/reception.  The actual channel frequency hopping and transmission window timing are derived from the full epoch and not included in the medium.
+Each PHY driver uses the second through fifth medium bytes to determine the power, frequency range, number of channels, spreading, bitrate, error correction usage, regulatory requirements, channel dwell time, etc details on the transmission/reception.  The dynamic channel frequency hopping and transmission window timing are derived from the full epoch and not included in the medium.
 
 Transmitted payloads do not need whitening as encrypted packets are by nature DC-free.  They also do not explicitly require CRC as all telehash packets have authentication bytes included for integrity verification.
 
@@ -146,15 +146,21 @@ The next four bytes (32 bits) are used as the window microsecond offset timing s
 
 ### Medium Types
 
-Medium type table:
+Medium `type` byte table:
 
-| Byte  | Encoding
-|-------|---------
-| 0x00  | Reserved
-| 0x01  | OOK
-| 0x02  | (G)FSK
-| 0x03  | LoRa
-| 0x04  | (O)QPSK
+
+| Bit 7      | Community
+|------------|---------
+| 0b0xxxxxxx | Public
+| 0b1xxxxxxx | Private
+
+| Bits 6-0   | Encoding
+|------------|---------
+| 0bx0000000 | Reserved
+| 0bx0000001 | OOK
+| 0bx0000010 | (G)FSK
+| 0bx0000011 | LoRa
+| 0bx0000100 | (O)QPSK
 
 #### OOK
 
@@ -172,7 +178,6 @@ Epoch Header
 * byte 3 - standard frequency range (see table)
 * byte 4 - Bw & CodingRate (RegModemConfig 1)
 * byte 5 - SpreadingFactor (RegModemConfig 2)
-* byte 6 - reserved
 
 All preambles are set to the minimum size of 6.
 
@@ -203,7 +208,7 @@ Notes on ranges:
 
 ### Encrypted Knock Payload
 
-A unique 32 byte secret must be derived for every epoch and include the medium definition. The 32 bytes are the binary digest output of multiple SHA-256 calculations of source data from the community and hashnames.  The first digest is generated from the medium (6 bytes), that output is combined with the community name (string) for a second digest.
+A unique 32 byte secret must be derived for every epoch and include the medium definition. The 32 bytes are the binary digest output of multiple SHA-256 calculations of source data from the community and hashnames.  The first digest is generated from the medium (5 bytes), that output is combined with the community name (string) for a second digest.
 
 For public communities this second digest is the secret for the `PING` epoch that is shared and known by all members.  For private communities it is combined with a member's hashname (32 bytes) for a final digest that is the secret for the `PING` epoch unique to each member.  With direct communities the other member's hashname is also combined and a final (fourth) digest is the secret unique to that community and pair of members.
 
@@ -277,7 +282,7 @@ In order for any mote to join a private community it must first have at a minimu
 
 It must also have either it's own hashname independently added as a trusted member to the leader(s), or have a handshake that will verify its membership and be accepted by a leader.
 
-The three sources of a hashname (32 bytes), the medium (6 bytes), and community name (string) are combined in that order and the SHA-256 digest is generated as the secret for the `PING` epoch. and listen for a knock in that epoch. This takes advantage of the fact that the community medium is divided into the same set of channels, such that every `PING` epoch will have some overlap with other community epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their `PING` epoch's (sequence 0), they should then attempt to receive an `ECHO` knock exactly one window period after the transmission.
+The three sources of a hashname (32 bytes), the medium (5 bytes), and community name (string) are combined in that order and the SHA-256 digest is generated as the secret for the `PING` epoch. and listen for a knock in that epoch. This takes advantage of the fact that the community medium is divided into the same set of channels, such that every `PING` epoch will have some overlap with other community epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their `PING` epoch's (sequence 0), they should then attempt to receive an `ECHO` knock exactly one window period after the transmission.
 
 The local leader should attempt to maximize their use of their own `PING` epoch overlapping channels to allow for fast resynchronization to them, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently and continuously listening for any other knocks there if resources are available. When a mote detects that it is disconnected from the private community it should also send regular knocks on the sync epoch channels of last-known nearby motes.
 
