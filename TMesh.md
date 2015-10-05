@@ -270,9 +270,7 @@ Each mote should share enough detail about its active neighbors with every neigh
 
 A community is defined as a single medium and a string name, both of which must be known to join that community.  They are the primary mechanism to manage and organize motes based on available spectrum and energy, where each community is bound to a single medium with predictable energy usage and available capacity.
 
-Any mesh may make use of multiple communities to optimize the overall availability and reliability, but different communities can not be used as a trust or secure grouping mechanism, the medium and name are not considered secrets.
-
-When multiple community names are used within one mesh they must all be unique.
+Any mesh may make use of multiple communities to optimize the overall availability and reliability, but different communities are not a trust or secure grouping mechanism, the medium and name are not considered secrets.
 
 #### Private Community
 
@@ -280,7 +278,7 @@ A private community is not visible to any non-member, other than randomly timed 
 
 In order for any mote to join a private community it must first have at a minimum the community name, the hashname of one or more of the current leaders of that community, and the medium on which it is operating.
 
-It must also have either it's own hashname independently added as a trusted member to the leader(s), or have a handshake that will verify its membership and be accepted by a leader.
+It must also have either it's own hashname independently added as a trusted member to the leader(s), or have a handshake that will verify its mesh membership and be accepted by a leader.
 
 The three sources of a hashname (32 bytes), the medium (5 bytes), and community name (string) are combined in that order and the SHA-256 digest is generated as the secret for the `PING` epoch. and listen for a knock in that epoch. This takes advantage of the fact that the community medium is divided into the same set of channels, such that every `PING` epoch will have some overlap with other community epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their `PING` epoch's (sequence 0), they should then attempt to receive an `ECHO` knock exactly one window period after the transmission.
 
@@ -288,9 +286,9 @@ The local leader should attempt to maximize their use of their own `PING` epoch 
 
 #### Public Community
 
-A public community is inherently visibile to any mote and should only be used for well-known or shared open services where the existince of the motes in the community is not private.  Any third party will be able to monitor participation in a public community, so they should be used minimally and only with ephemeral generated hashnames when possible.  A single mote must not participate in both a public and private community at the same time using the same hashname in order to strictly avoid leaking information about other motes to the public.
+A public community is inherently visibile to any mote and should only be used for well-known or shared open services where the existince of the motes in the community is not private.  Any third party will be able to monitor participation in a public community, so they should be used minimally and only with ephemeral generated hashnames when possible.  
 
-The public community is defined only by the common medium and name, where the secret is the SHA-256 digest of the name string.  These are the inputs to create a `PING` epoch that a joining mote must both listen for and repeatedly transmit knocks on until an `ECHO` is received.  Since they will both be using the same medium channel, if possible a mote should first listen for a transmission in progress before sending another knock to minimize interference.
+The public community is defined only by the common medium and name, where the secret is the SHA-256 digest of the medium (5 bytes) and the name string.  These are the inputs to create a `PING` epoch that a joining mote must both listen for and repeatedly transmit knocks on until an `ECHO` is received.  Since they will both be using the same medium channel, if possible a mote should first listen for a transmission in progress before sending another knock to minimize interference.
 
 The `PING` knocks must always have a random 64 byte payload so that even if the secret is known, it is not possible for a third party to determine if the knock was a `PING` or not.
 
@@ -300,11 +298,6 @@ Upon receiving any `ECHO` knock the mote should immediately create the `PAIR` ep
 
 This functionality should not be enabled/deployed by default, it should only be used when management policy explicitly requires it for special/public use cases or temporary pairing/provisioning setup.
 
-### Direct Connection
-
-Once two motes are linked through a community or another OOB mechanism they may generate and exchange direct epochs with ephemeral secrets known only to them. These are created dynamically as needed to increase the bandwidth available between motes and may have a lower QoS as they can overlap with other nearby motes.
-
-Every mote should continually try new direct epochs with a higher energy efficiency as a method to optimize communication, reserving the community epochs for only when the direct epochs are not performing or for higher priority packets.
 
 ### Optimizations
 
@@ -315,7 +308,7 @@ Since a community includes the automated sharing the time offsets of neighbors, 
 # Implementation Notes
 
 * if a packet chunk is incomplete in one window, prioritize subsequent windows from that mote
-
+* prioritize different communities based on their energy performance, test more efficient ones dynamically
 
 # Security Considerations
 
