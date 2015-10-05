@@ -78,15 +78,15 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 
 ## Overview
 
-TMesh is the composite of three distinct layers, the physical radio medium encoding (PHY), the shared management of the spectrum (MAC), and the networking relationships between 2+ motes (Mesh).
+TMesh is the composite of three distinct layers, the physical radio medium encoding (PHY), the shared management of the spectrum (MAC), and the networking relationships between 2 or more motes (Mesh).
 
 Common across all of these is the concept of an `epoch`, which is a generated set of unique window sequences shared between two motes in one `medium`.  A `window` is where one `knock` can occur from one mote to another unique to that window and epoch.  A `knock` is the transmission of a 64 byte fixed frame of payload, plus any medium-specific overhead (preamble).
 
 Each epoch is the smallest divisible unit of bandwidth and is only capable of a max throughput of 120 bits per second average, approximately 1 kilobyte per minute. Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will typically have multiple epochs with other motes to increase the overall bandwidth capacity and minimize latency.
 
-The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost per window to send/receive based on the medium settings.
+The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost per window to send/receive based on the medium definition.
 
-A community is simply the overall set of motes that have both minimum trust in each other are using a common medium to facilitate larger scale mesh routing.  Within any community, the motes that can directly communicate over an epoch are called neighbors, and any neighbor that has a higher z-index is always considered the current leader and may have additional responsibilities.
+A community is any set of motes that are using a common medium definition and have enough trust to establish a telehash link for sharing peer motes and act as a router to facilitate larger scale meshing.  Within any community, the motes that can directly communicate over an epoch are called neighbors, and any neighbor that has a higher z-index is always considered the current leader and may have additional responsibilities.
 
 ### PHY
 
@@ -203,9 +203,11 @@ Notes on ranges:
 
 ### Encrypted Knock Payload
 
-A unique 32 byte secret must be derived for every epoch and include the medium definition.  The additional sources for the secret depend on the context in which the epoch is used, and may range from a well-known fixed value (for public communities), shared value (for private communities), or ephemeral value (for direct connections).  The 32 bytes are the binary digest output of a SHA-256 calculation of the concatenated source inputs for the secret.
+A unique 32 byte secret must be derived for every epoch and include the medium definition. The 32 bytes are the binary digest output of multiple SHA-256 calculations of source data from the community and hashnames.  The first digest is generated from the medium (6 bytes), that output is combined with the community name (string) for a second digest.
 
-The nonce input is always the epoch's current window sequence encoded as a network order unsigned double integer (`uint64_t`) 8 bytes.
+For public communities this second digest is the secret for the `PING` epoch that is shared and known by all members.  For private communities it is combined with a member's hashname (32 bytes) for a final digest that is the secret for the `PING` epoch unique to each member.  With direct communities the other member's hashname is also combined and a final (fourth) digest is the secret unique to that community and pair of members.
+
+The nonce input is always the epoch's current window sequence encoded as a network order unsigned double integer (`uint64_t`) 8 bytes.  This provides an additional guarantee against replay or delay attacks as the ciphertext is invalid outside of a window.
 
 ### Epochs
 
@@ -257,25 +259,33 @@ The z-index also serves as a window mask for all of that mote's receiving epoch 
 
 Each mote should share enough detail about its active neighbors with every neighbor so that a neighborhood map can be maintained.  This includes the relative sync time of each community epoch such that a neighbor can predict when a mote will be listening or may be transmitting to another nearby mote.
 
-### Private Community
-
-A private community is not visible to any non-member, other than randomly timed knock transmissions on random channels there is no decodeable signals detectable to any third party, it is a dark mesh network that can only be joined via out of band coordination and explicit mesh membership trust.
-
-In order for any mote to join a private community it must first have at a minimum the hashname of one or more of the current leaders of that community and the medium on which it is operating.
-
-It must also have either it's own hashname independently added as a trusted member to the leader(s), or have a handshake that will verify its membership and be accepted by a leader.
-
-Given these three things (a leader hashname, the medium, and authorization) it can then calculate the `PING` epoch and listen for a knock in that epoch. This takes advantage of the fact that the community medium is divided into the same set of channels, such that every `PING` epoch will have some overlap with other community epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their `PING` epoch's (sequence 0), they should then attempt to receive an `ECHO` knock exactly one window period after the transmission.
-
-The local leader should attempt to maximize their use of their own `PING` epoch overlapping channels to allow for fast resynchronization to them, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently and continuously listening for any other knocks there if resources are available. When a mote detects that it is disconnected from the private community it should also send regular knocks on the sync epoch channels of last-known nearby motes.
+### Communities
 
 > Describe communities and routing in more detail, and routers performing ongoing sync-mode duties.
 
-### Public Community
+A community is defined as a single medium and a string name, both of which must be known to join that community.  They are the primary mechanism to manage and organize motes based on available spectrum and energy, where each community is bound to a single medium with predictable energy usage and available capacity.
 
-A public community is inherently visibile to any mote and should only be used for well-known or shared open services where the existince of the motes in the community is not private.  Any third party will be able to monitor participation in a public community, so they should be used minimally and only with ephemeral generated hashnames when possible.
+Any mesh may make use of multiple communities to optimize the overall availability and reliability, but different communities can not be used as a trust or secure grouping mechanism, the medium and name are not considered secrets.
 
-The public community is defined only by a common medium and secret, where the secret is the SHA-256 digest of a public community name string.  These are the inputs to create a `PING` epoch that a joining mote must both listen for and repeatedly transmit knocks on until an `ECHO` is received.  Since they will both be using the same medium channel, if possible a mote should first listen for a transmission in progress before sending another knock to minimize interference.
+When multiple community names are used within one mesh they must all be unique.
+
+#### Private Community
+
+A private community is not visible to any non-member, other than randomly timed knock transmissions on random channels there is no decodeable signals detectable to any third party, it is a dark mesh network that can only be joined via out of band coordination and explicit mesh membership trust.
+
+In order for any mote to join a private community it must first have at a minimum the community name, the hashname of one or more of the current leaders of that community, and the medium on which it is operating.
+
+It must also have either it's own hashname independently added as a trusted member to the leader(s), or have a handshake that will verify its membership and be accepted by a leader.
+
+The three sources of a hashname (32 bytes), the medium (6 bytes), and community name (string) are combined in that order and the SHA-256 digest is generated as the secret for the `PING` epoch. and listen for a knock in that epoch. This takes advantage of the fact that the community medium is divided into the same set of channels, such that every `PING` epoch will have some overlap with other community epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their `PING` epoch's (sequence 0), they should then attempt to receive an `ECHO` knock exactly one window period after the transmission.
+
+The local leader should attempt to maximize their use of their own `PING` epoch overlapping channels to allow for fast resynchronization to them, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently and continuously listening for any other knocks there if resources are available. When a mote detects that it is disconnected from the private community it should also send regular knocks on the sync epoch channels of last-known nearby motes.
+
+#### Public Community
+
+A public community is inherently visibile to any mote and should only be used for well-known or shared open services where the existince of the motes in the community is not private.  Any third party will be able to monitor participation in a public community, so they should be used minimally and only with ephemeral generated hashnames when possible.  A single mote must not participate in both a public and private community at the same time using the same hashname in order to strictly avoid leaking information about other motes to the public.
+
+The public community is defined only by the common medium and name, where the secret is the SHA-256 digest of the name string.  These are the inputs to create a `PING` epoch that a joining mote must both listen for and repeatedly transmit knocks on until an `ECHO` is received.  Since they will both be using the same medium channel, if possible a mote should first listen for a transmission in progress before sending another knock to minimize interference.
 
 The `PING` knocks must always have a random 64 byte payload so that even if the secret is known, it is not possible for a third party to determine if the knock was a `PING` or not.
 
