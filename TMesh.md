@@ -133,6 +133,35 @@ and indicate requirement levels for compliant TMesh implementations.
 
 ## PHY
 
+* 8 bytes are encrypted
+  * 4 for microsecond offset of next window, mask for speed
+  * 4 for channel seed
+  * output is used as nonce for next encryption
+
+* 4 byte sequence
+* 4 byte ūs ago
+* z, exponent is mask
+  * must be confirmed to change mask
+  * z sent in handshake
+* rssi
+* nonce + secret
+  * 8 byte zero pad, 4 for next ūs (then masked), 4 for channel
+
+* frame has first byte for to/from
+  * bit 1 is to/from
+  * bit 2 is full or tail, if tail byte 2 is length
+  * bit 3-8 is neighbor slot to/from
+
+* private pairing unsync'd will look for seq x (first xmit), first packet must always be handshake and only one chunk until another rx'd
+* private comm name is private
+* pairing ping uses zeros nonce, base nonce is decipher'd 8 bytes, next window uses new nonce
+
+* handshake sends z, lower of two is used for first channel packet window
+* handshake at is used as seq nonce base
+* public re-does secret based on hashnames
+
+
+
 
 ### Private Hopping Sequence
 
