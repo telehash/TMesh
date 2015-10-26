@@ -154,7 +154,7 @@ and indicate requirement levels for compliant TMesh implementations.
 
 * private pairing unsync'd will look for seq x (first xmit), first packet must always be handshake and only one chunk until another rx'd
 * private comm name is private
-* pairing ping uses zeros nonce, base nonce is decipher'd 8 bytes, next window uses new nonce
+* pairing ping uses zeros nonce, base nonce is decipher'd, hashed, first 8 bytes, next window uses new nonce
 
 * handshake sends z, lower of two is used for first channel packet window
 * handshake at is used as nonce source
@@ -163,15 +163,15 @@ and indicate requirement levels for compliant TMesh implementations.
 * secrets always hash(comm)+hash(medium)+hash(hn0)+hash(hn1)
 * public beacons hashname using zero'd hn0/hn1 and nonce
   * first 32 are potential hn
-  * once sent/received, reset secret and use last one as time base to send sync
-* sync is 8-nonce random and 8-nonce ciphered, extra 48 reserved
+  * once sent/received, reset secret, use last one as ping to derive nonce and time base for sync
+* sync is 64 random bytes, cipher'd using zero nonce, first 8 decipher'd are then new base nonce
   * set base nonce, calc seq 0, begin handshakes
   * last handshake is time base for first window
   * reset nonce to be chacha(at,last nonce,secret)
 
 * neighborhood map sends each nonce + offset + z
 * to change z, must re-handshake
-
+* each window is a tx/rx, the microsecond offset even/odd determins polarity of hashnames, match=tx
 
 
 
