@@ -157,8 +157,21 @@ and indicate requirement levels for compliant TMesh implementations.
 * pairing ping uses zeros nonce, base nonce is decipher'd 8 bytes, next window uses new nonce
 
 * handshake sends z, lower of two is used for first channel packet window
-* handshake at is used as seq nonce base
+* handshake at is used as nonce source
 * public re-does secret based on hashnames
+
+* secrets always hash(comm)+hash(medium)+hash(hn0)+hash(hn1)
+* public beacons hashname using zero'd hn0/hn1 and nonce
+  * first 32 are potential hn
+  * once sent/received, reset secret and use last one as time base to send sync
+* sync is 8-nonce random and 8-nonce ciphered, extra 48 reserved
+  * set base nonce, calc seq 0, begin handshakes
+  * last handshake is time base for first window
+  * reset nonce to be chacha(at,last nonce,secret)
+
+* neighborhood map sends each nonce + offset + z
+* to change z, must re-handshake
+
 
 
 
