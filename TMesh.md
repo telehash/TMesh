@@ -161,13 +161,14 @@ and indicate requirement levels for compliant TMesh implementations.
 * public re-does secret based on hashnames
 
 * secrets always hash(comm)+hash(medium)+hash(hn0)+hash(hn1)
-* public beacons hashname using zero'd hn0/hn1 and nonce
+* public ping beacons hashname using zero'd hn0/hn1 and nonce
   * first 32 are potential hn
   * once sent/received, reset secret, use last one as ping to derive nonce and time base for sync
 * sync is 64 random bytes, cipher'd using zero nonce, first 8 decipher'd are then new base nonce
   * set base nonce, calc seq 0, begin handshakes
   * last handshake is time base for first window
   * reset nonce to be chacha(at,last nonce,secret)
+* ping frame first 4 bytes are from current nonce
 
 * neighborhood map sends each nonce + offset + z
 * to change z, must re-handshake
