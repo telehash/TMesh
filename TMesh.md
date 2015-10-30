@@ -140,9 +140,11 @@ and indicate requirement levels for compliant TMesh implementations.
 
 * 4 byte sequence
 * 4 byte ūs ago
-* z, exponent is mask
+* z, 4 bits is mask, 4 bits is sort (energy reserve)
   * must be confirmed to change mask
-  * z sent in handshake
+    * scheduled to be active at a future nonce
+  * z sent in channel
+  * default based on medium power?
 * rssi
 * nonce + secret
   * 8 byte zero pad, 4 for next ūs (then masked), 4 for channel
@@ -169,6 +171,7 @@ and indicate requirement levels for compliant TMesh implementations.
   * last handshake is time base for first window
   * reset nonce to be chacha(at,last nonce,secret)
 * ping frame first 4 bytes are from current nonce
+  * when public and exchanging handshakes, postpone other public pings
 
 * neighborhood map sends each nonce + offset + z
 * to change z, must re-handshake
