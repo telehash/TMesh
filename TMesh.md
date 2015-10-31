@@ -144,7 +144,7 @@ and indicate requirement levels for compliant TMesh implementations.
   * must be confirmed to change mask
     * scheduled to be active at a future nonce
   * z sent in channel
-  * default based on medium power?
+  * default z on start/reset is set by medium
 * rssi
 * nonce + secret
   * 8 byte zero pad, 4 for next ūs (then masked), 4 for channel
@@ -172,6 +172,9 @@ and indicate requirement levels for compliant TMesh implementations.
   * reset nonce to be chacha(at,last nonce,secret)
 * ping frame first 4 bytes are from current nonce
   * when public and exchanging handshakes, postpone other public pings
+* ping tx only w/ a nonce that has rx window next
+  * if rx'd w/ matching nonce, remove ping flag and let channels go
+  * only reset nonce based on channel scheduled ones
 
 * neighborhood map sends each nonce + offset + z
 * to change z, must re-handshake
