@@ -233,15 +233,25 @@ The nonce is randomly generated and rotated every window.  When two motes are no
 
 The secret and current nonce are used to encode/decode the chipertext of each knock with ChaCha20.
 
+### Frame Payload
+
+* uses telehash chunking, 63-byte chunks
+* frame has first byte for to/from
+  * bit 1 is to/from
+  * bit 2 is full chunk or tail, if tail byte 2 is length
+  * bit 3-8 is neighbor slot to/from
+* neighbors can ask others to forward frames directly
+
 ### WIP
 
-
-## Mesh
+Nonce: 
 
 * 8 bytes are encrypted
   * 4 for microsecond offset of next window, mask for speed
   * 4 for channel seed
   * output is used as nonce for next encryption
+
+Neighborhood:
 
 * 4 byte sequence
 * 4 byte ūs ago
@@ -251,30 +261,14 @@ The secret and current nonce are used to encode/decode the chipertext of each kn
   * z sent in channel
   * default z on start/reset is set by medium
 * rssi
-* nonce + secret
-  * 8 byte zero pad, 4 for next ūs (then masked), 4 for channel
 
-* frame has first byte for to/from
-  * bit 1 is to/from
-  * bit 2 is full or tail, if tail byte 2 is length
-  * bit 3-8 is neighbor slot to/from
-
-* private pairing unsync'd will look for seq x (first xmit), first packet must always be handshake and only one chunk until another rx'd
-* private comm name is private
-* pairing ping uses zeros nonce, base nonce is decipher'd, hashed, first 8 bytes, next window uses new nonce
-
-* handshake sends z, lower of two is used for first channel packet window
-* handshake at is used as nonce source
-* public re-does secret based on hashnames
 
 * secrets always hash(comm)+hash(medium)+hash(hn0)+hash(hn1)
 * public ping beacons hashname using zero'd hn0/hn1 and nonce
-  * first 32 are potential hn
-  * once sent/received, reset secret, use last one as ping to derive nonce and time base for sync
-* sync is 64 random bytes, cipher'd using zero nonce, first 8 decipher'd are then new base nonce
+  * includes potential hn
+  * once sent/received generate window based on hashnames, use last one as ping to derive nonce and time base for sync
+* sync is 64 random bytes, cipher'd using zero nonce, first 4 decipher'd are then new nonce
   * set base nonce, calc seq 0, begin handshakes
-  * last handshake is time base for first window
-  * reset nonce to be chacha(at,last nonce,secret)
 * ping frame first 4 bytes are from current nonce
   * when public and exchanging handshakes, postpone other public pings
 * ping tx only w/ a nonce that has rx window next
@@ -282,19 +276,19 @@ The secret and current nonce are used to encode/decode the chipertext of each kn
   * only reset nonce based on channel scheduled ones
 
 * neighborhood map sends each nonce + offset + z
-* to change z, must re-handshake
 * each window is a tx/rx, the microsecond offset even/odd determins polarity of hashnames, match=tx
 
+## Mesh
 
 ### z-index
 
 Every mote calculates its own `z-index`, a uint8_t value that represents the resources it has available to assist with the mesh.  It will vary based on the battery level or fixed power, as well as if the mote has greater network access (is an internet bridge) or is well located (based on configuration).
 
-The z-index also serves as a window mask for all of that mote's receiving epoch windows by powers of two (128+ is all windows, 64-127 is half the windows, etc). This enables motes to greatly reduce the time required waking and listening for low power and high latency applications.
+The z-index also serves as a window mask for all of that mote's receiving window sizes by powers of two (128+ is all windows, 64-127 is half the windows, etc). This enables motes to greatly reduce the time required waking and listening for low power and high latency applications.
 
 ### Neighbors
 
-Each mote should share enough detail about its active neighbors with every neighbor so that a neighborhood map can be maintained.  This includes the relative sync time of each community epoch such that a neighbor can predict when a mote will be listening or may be transmitting to another nearby mote.
+Each mote should share enough detail about its active neighbors with every neighbor so that a neighborhood map can be maintained.  This includes the relative sync time of each mote such that a neighbor can predict when a mote will be listening or may be transmitting to another nearby mote.
 
 ### Communities
 
