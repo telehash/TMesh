@@ -89,7 +89,7 @@ A `medium` is a compact 5 byte definition of the exact PHY encoding details requ
 
 `Byte 0` is the primary `type` that determines if the medium is for a public or private community and the overall category of PHY encoding technique to use.  The first/high bit of `byte 0` determins if the medium is for public communities (bit `0`, values from 0-127) or private communities (bit `1`, values from 128-255).  The other bits in the `type` map directly to different PHY modes on transceivers or different drivers entirely.
 
-`Byte 1` is the maximum energy requirements for that medium both for transmission and reception.  While a mote may determine that it can use less energy and optimize it's usage, this byte value sets an upper bar so that a worst case can always be independently estimated.  The energy byte is in two 4-bit parts, the first half for the TX energy, and the second half for the RX energy.  While different hardware devices will vary on exact mappings of mA to the 1-16 range of values, effort will be made to define general buckets and greater definitions to encourage compatibility for efficiency estimation purposes.
+`Byte 1` is the maximum energy boost requirements for that medium both for transmission and reception.  While a mote may determine that it can use less energy and optimize it's usage, this byte value sets an upper bar so that a worst case can always be independently estimated.  The energy byte is in two 4-bit parts, the first half for the additional TX energy, and the second half for the additional RX energy.  While different hardware devices will vary on exact mappings of mA to the 1-16 range of values, effort will be made to define general buckets and greater definitions to encourage compatibility for efficiency estimation purposes.
 
 Each PHY driver uses the remaining medium `bytes 2, 3, and 4` to determine the power, frequency range, number of channels, spreading, bitrate, error correction usage, regulatory requirements, channel dwell time, etc details on the transmission/reception.  The dynamic channel frequency hopping and transmission window timing are derived dynamically and not included in the medium.
 
@@ -192,7 +192,7 @@ The next four bytes (32 bits) are used as the window microsecond offset timing s
 
 ### Medium Types
 
-Medium `type` byte table:
+Medium `type byte` (0) table:
 
 
 | Bit 7      | Community
@@ -208,6 +208,28 @@ Medium `type` byte table:
 | 0bx0000011 | LoRa
 | 0bx0000100 | (O)QPSK
 
+The `energy byte` (1) table:
+
+> Work In Progress
+
+| Bits 7-4   | Max TX mA
+|------------|---------
+| 0bx0000000 | 1
+| 0bx0000001 | 4
+| 0bx0000010 | 8
+| 0bx0000011 | 16
+| 0bx0000100 | 32
+
+| Bits 7-4   | Max RX mA
+|------------|---------
+| 0bx0000000 | 1
+| 0bx0000001 | 2
+| 0bx0000010 | 4
+| 0bx0000011 | 8
+| 0bx0000100 | 16
+
+...
+
 #### OOK
 
 > TBD
@@ -220,10 +242,9 @@ Medium `type` byte table:
 
 Epoch Header
 
-* byte 2 - transmitting energy mA
-* byte 3 - standard frequency range (see table)
-* byte 4 - Bw & CodingRate (RegModemConfig 1)
-* byte 5 - SpreadingFactor (RegModemConfig 2)
+* byte 2 - standard frequency range (see table)
+* byte 3 - Bw & CodingRate (RegModemConfig 1)
+* byte 4 - SpreadingFactor (RegModemConfig 2)
 
 All preambles are set to the minimum size of 6.
 
