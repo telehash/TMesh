@@ -85,17 +85,19 @@ A community is any set of motes that are using a common medium definition and ha
 
 ### PHY
 
-A `medium` is defined by 5 bytes that specify the PHY type and exact encoding details.  The 5 bytes are always string encoded as 8 base32 characters for ease of use in JSON and configuration storage.
+A `medium` is a compact 5 byte definition of the exact PHY encoding details required for a radio to operate.  The 5 bytes are always string encoded as 8 base32 characters for ease of use in JSON and configuration storage, an example medium is `azdhpa5r` which is 0x06, 0x46, 0x77, 0x83, 0xb1.
 
-The first byte is the primary `type` that determines if the medium is for a public or private community and the overall category of PHY encoding technique to use.  The first/high bit of 0 (byte values from 0-127) is for public communities, and a bit of 1 (values from 128-255) is for private ones.  The other bits in the `type` map directly to different PHY modes on transceivers or different drivers entirely.
+`Byte 0` is the primary `type` that determines if the medium is for a public or private community and the overall category of PHY encoding technique to use.  The first/high bit of `byte 0` determins if the medium is for public communities (bit `0`, values from 0-127) or private communities (bit `1`, values from 128-255).  The other bits in the `type` map directly to different PHY modes on transceivers or different drivers entirely.
 
-Each PHY driver uses the second through fifth medium bytes to determine the power, frequency range, number of channels, spreading, bitrate, error correction usage, regulatory requirements, channel dwell time, etc details on the transmission/reception.  The dynamic channel frequency hopping and transmission window timing are derived from the full epoch and not included in the medium.
+`Byte 1` is the maximum energy requirements for that medium both for transmission and reception.  While a mote may determine that it can use less energy and optimize it's usage, this byte value sets an upper bar so that a worst case can always be independently estimated.  The energy byte is in two 4-bit parts, the first half for the TX energy, and the second half for the RX energy.  While different hardware devices will vary on exact mappings of mA to the 1-16 range of values, effort will be made to define general buckets and greater definitions to encourage compatibility for efficiency estimation purposes.
 
-Transmitted payloads do not need whitening as encrypted packets are by nature DC-free.  They also do not explicitly require CRC as all telehash packets have authentication bytes included for integrity verification.
+Each PHY driver uses the remaining medium `bytes 2, 3, and 4` to determine the power, frequency range, number of channels, spreading, bitrate, error correction usage, regulatory requirements, channel dwell time, etc details on the transmission/reception.  The dynamic channel frequency hopping and transmission window timing are derived dynamically and not included in the medium.
 
-A single fixed 64 byte payload is transmitted during each window in an epoch, this is called a `knock`.  If the un-encrypted payload does not fill the full 64 byte frame the remaining bytes must contain additional data so as to not reveal the actual payload size.
+Transmitted payloads do not generally need whitening as encrypted packets are by nature DC-free.  They also do not explicitly require CRC as all telehash packets have authentication bytes included for integrity verification.
 
-> WIP - determine a standard filler data format that will add additional dynamically sized error correction, explore taking advantage of the fact that the inner and outer bitstreams are encrypted and bias-free (Gaussian distribution divergence?), the last byte should always duplicate the first/length to ensure differentiation between payload/filler
+A single fixed 64 byte payload can be transmitted during each window in a sequence, this is called a `knock`.  If the un-encrypted payload does not fill the full 64 byte frame the remaining bytes must contain additional data so as to not reveal the actual payload size.
+
+> WIP - determine a standard filler data format that will add additional dynamically sized error correction, explore taking advantage of the fact that the inner and outer bitstreams are encrypted and bias-free (Gaussian distribution divergence?)
 
 ### MAC
 
