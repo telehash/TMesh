@@ -130,65 +130,17 @@ and indicate requirement levels for compliant TMesh implementations.
 
 ## PHY
 
-* 8 bytes are encrypted
-  * 4 for microsecond offset of next window, mask for speed
-  * 4 for channel seed
-  * output is used as nonce for next encryption
-
-* 4 byte sequence
-* 4 byte ūs ago
-* z, 4 bits is mask, 4 bits is sort (energy reserve)
-  * must be confirmed to change mask
-    * scheduled to be active at a future nonce
-  * z sent in channel
-  * default z on start/reset is set by medium
-* rssi
-* nonce + secret
-  * 8 byte zero pad, 4 for next ūs (then masked), 4 for channel
-
-* frame has first byte for to/from
-  * bit 1 is to/from
-  * bit 2 is full or tail, if tail byte 2 is length
-  * bit 3-8 is neighbor slot to/from
-
-* private pairing unsync'd will look for seq x (first xmit), first packet must always be handshake and only one chunk until another rx'd
-* private comm name is private
-* pairing ping uses zeros nonce, base nonce is decipher'd, hashed, first 8 bytes, next window uses new nonce
-
-* handshake sends z, lower of two is used for first channel packet window
-* handshake at is used as nonce source
-* public re-does secret based on hashnames
-
-* secrets always hash(comm)+hash(medium)+hash(hn0)+hash(hn1)
-* public ping beacons hashname using zero'd hn0/hn1 and nonce
-  * first 32 are potential hn
-  * once sent/received, reset secret, use last one as ping to derive nonce and time base for sync
-* sync is 64 random bytes, cipher'd using zero nonce, first 8 decipher'd are then new base nonce
-  * set base nonce, calc seq 0, begin handshakes
-  * last handshake is time base for first window
-  * reset nonce to be chacha(at,last nonce,secret)
-* ping frame first 4 bytes are from current nonce
-  * when public and exchanging handshakes, postpone other public pings
-* ping tx only w/ a nonce that has rx window next
-  * if rx'd w/ matching nonce, remove ping flag and let channels go
-  * only reset nonce based on channel scheduled ones
-
-* neighborhood map sends each nonce + offset + z
-* to change z, must re-handshake
-* each window is a tx/rx, the microsecond offset even/odd determins polarity of hashnames, match=tx
-
-
-
 
 ### Private Hopping Sequence
 
 Most PHY encodings require specific synchronized channel and timing inputs, these are generated from the epoch's 32 byte secret via a consistent transformation.
 
-An eight byte null/zero pad is encrypted with the current epoch secret/nonce for each window and the ciphertext result is used for channel selection and window timing.
+An eight byte null/zero pad is encrypted with the current epoch secret/nonce for each window and the ciphertext result is used for channel selection, window timing, and as a seed for the next window in the sequence.
 
-The first two bytes of the ciphertext result is used for channel selection as a network order unsigned short integer.  The 2^16 total possible channels are simply mod'd to the number of usable channels based on the current medium.  If there are 50 channels, it would be `channel = ((uint16_t)pad) % 50`.
+The first four bytes (32 bits) are used to determine the window microsecond offset timing as a network order unsigned long integer.  Each window is from 2^16 to 2^32 microseconds, the 32-bit random offset is scaled by the current z-index into the possible range of values.
 
-The next four bytes (32 bits) are used as the window microsecond offset timing source as a network order unsigned long integer.  Each window is up to 2^22 microseconds, but every medium will have a fixed amount of time it takes to send or receive within that window and that is first subtracted from the total possible microseconds.  The remaining microsecond offset start times are mod'd to get the exact offset for that window.
+The next two bytes of the ciphertext result is used for channel selection as a network order unsigned short integer.  The 2^16 total possible channels are simply mod'd to the number of usable channels based on the current medium.  If there are 50 channels, it would be `channel = ((uint16_t)pad) % 50`.
+
 
 ### Medium Types
 
@@ -275,51 +227,64 @@ Notes on ranges:
 
 ### Encrypted Knock Payload
 
-A unique 32 byte secret must be derived for every epoch and include the medium definition. The 32 bytes are the binary digest output of multiple SHA-256 calculations of source data from the community and hashnames.  The first digest is generated from the medium (5 bytes), that output is combined with the community name (string) for a second digest.
+A unique 32 byte secret is derived for every pair of motes in any community. The 32 bytes are the binary digest output of multiple SHA-256 calculations of source data from the community and hashnames.  The first digest is generated from the medium (5 bytes), that output is combined with the community name (string) for a second digest, and then with the mote hashnames in sorted order.
 
-For public communities this second digest is the secret for the `PING` epoch that is shared and known by all members.  For private communities it is combined with a member's hashname (32 bytes) for a final digest that is the secret for the `PING` epoch unique to each member.  With direct communities the other member's hashname is also combined and a final (fourth) digest is the secret unique to that community and pair of members.
+The nonce is randomly generated and rotated every window.  When two motes are not in sync only half the nonce is rotated in order to keep the channel stable for private synchronization handshakes to be established.
 
-The nonce input is always the epoch's current window sequence encoded as a network order unsigned double integer (`uint64_t`) 8 bytes.  This provides an additional guarantee against replay or delay attacks as the ciphertext is invalid outside of a window.
+The secret and current nonce are used to encode/decode the chipertext of each knock with ChaCha20.
 
-### Epochs
-
-While all epochs are the same construct of a medium, secret, window sequence, and tx/rx knocks, the context in how they're used may vary:
-
-* `PING` - used as a timing source signal, only sequence 0
-* `ECHO` - a response to a PING, is the one-time creation seed of a `PAIR`, only sequence 1
-* `PAIR` - only used to send initial handshakes to establish a new link
-* `LINK` - encrypted telehash channel packets for an established link
-
-#### PING
-
-A `PING` epoch is only used as a transmission timing signal on window sequence `0`. The payload is not used to send/receive any content and is only deciphered as a source to generate an `ECHO`.
-
-When two motes have a shared secret to create this type of epoch they can then use available energy to listen for a `PING` knock at any time on the given channel for sequence `0`.  When detected, the relevant `ECHO` can be generated and sent/received in the next window relative to the `PING` knock.
-
-#### ECHO
-
-An `ECHO` epoch is the one-time response to a detected `PING` knock and only exists to assist with the establishment of ephemeral `PAIR` epochs for the handshaking process.
-
-The secret for an `ECHO` epoch is derived from the medium and the deciphered payload of the `PING`.  For public communities the payload of a transmitted `PING` must be used as another source, whereas in a private community the receiving mote's hashname is the additional source to generate the secret.
-
-The single `ECHO` knock is always set to window sequence `1` relative to the received `PING` at sequence `0`.
-
-The payload is a pair of new ephemeral `PAIR` secrets, one for tx and one for rx.
-
-#### PAIR
-
-A pair of temporary `PAIR` epochs follow an `ECHO` and are only used to send/receive chunk-encoded handshakes to establish a telehash link.
-
-Once the link is established the corresponding `LINK` epochs for the given community and hashnames are initialized using the same time base as the original `PING` and begin at the correct window sequences based on that.
-
-#### LINK 
-
-All `LINK` epochs follow a successful `PAIR` or are triggered by an out-of-band synchronization, their secret, medium, and time base are a result of those processes.
-
-All `LINK` knocks are chunk-encoded encrypted telehash channel packets without the routing token prefixed.
+### WIP
 
 
 ## Mesh
+
+* 8 bytes are encrypted
+  * 4 for microsecond offset of next window, mask for speed
+  * 4 for channel seed
+  * output is used as nonce for next encryption
+
+* 4 byte sequence
+* 4 byte ūs ago
+* z, 4 bits is mask, 4 bits is sort (energy reserve)
+  * must be confirmed to change mask
+    * scheduled to be active at a future nonce
+  * z sent in channel
+  * default z on start/reset is set by medium
+* rssi
+* nonce + secret
+  * 8 byte zero pad, 4 for next ūs (then masked), 4 for channel
+
+* frame has first byte for to/from
+  * bit 1 is to/from
+  * bit 2 is full or tail, if tail byte 2 is length
+  * bit 3-8 is neighbor slot to/from
+
+* private pairing unsync'd will look for seq x (first xmit), first packet must always be handshake and only one chunk until another rx'd
+* private comm name is private
+* pairing ping uses zeros nonce, base nonce is decipher'd, hashed, first 8 bytes, next window uses new nonce
+
+* handshake sends z, lower of two is used for first channel packet window
+* handshake at is used as nonce source
+* public re-does secret based on hashnames
+
+* secrets always hash(comm)+hash(medium)+hash(hn0)+hash(hn1)
+* public ping beacons hashname using zero'd hn0/hn1 and nonce
+  * first 32 are potential hn
+  * once sent/received, reset secret, use last one as ping to derive nonce and time base for sync
+* sync is 64 random bytes, cipher'd using zero nonce, first 8 decipher'd are then new base nonce
+  * set base nonce, calc seq 0, begin handshakes
+  * last handshake is time base for first window
+  * reset nonce to be chacha(at,last nonce,secret)
+* ping frame first 4 bytes are from current nonce
+  * when public and exchanging handshakes, postpone other public pings
+* ping tx only w/ a nonce that has rx window next
+  * if rx'd w/ matching nonce, remove ping flag and let channels go
+  * only reset nonce based on channel scheduled ones
+
+* neighborhood map sends each nonce + offset + z
+* to change z, must re-handshake
+* each window is a tx/rx, the microsecond offset even/odd determins polarity of hashnames, match=tx
+
 
 ### z-index
 
