@@ -39,7 +39,7 @@ The key attributes of TMesh are:
   * high density - thousands per square kilometer
   * very low power - years on coin cell batteries
   * wide area - optimized for long-range (>1km) capable radios
-  * high latency - low minimum duty cycle from seconds to minutes
+  * high latency - low minimum duty cycle from seconds to hours
   * peer aware meshing - does not require dedicated coordinator hardware
   * high interference resiliency - bi-modal PHY to maximize connectivity in all conditions
   * dynamically resource optimized - powered motes naturally provide more routing assistance
@@ -48,7 +48,7 @@ The key attributes of TMesh are:
   
 ## The Need for Standards
 
-The existing best choices are all either only partial solutions like 802.15.4, require membership to participate like LoRaWAN, ZigBee, and Z-Wave, or are focused on specific verticals like DASH7 and Wireless M-Bus.
+The existing best choices are all either only partial solutions like 802.15.4, require commercial membership to participate like LoRaWAN, ZigBee, and Z-Wave, or are focused on specific verticals like DASH7 and Wireless M-Bus.
 
 All other options only provide incomplete or indadequate security and privacy, most use only optional AES-128 and often with complicated or fixed provisioning-based key management.  No existing option fully protects the mote identity and network metadata from monitoring.
 
@@ -67,24 +67,19 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 
 * `mote` - a single physical transmitting/receiving device
 * `medium` - definition of the specific channels/settings the physical transceivers use
-* `knock` - a single transmission
-* `window` - the period for a knock, 2^22 microseconds (~4.2 seconds)
-* `window sequence` - each window will change frequency/channels in a sequence
-* `epoch` - one unique set of window sequences, derived from a medium and a secret
 * `community` - a network of motes using a common medium to create a large area mesh 
 * `neighbors` - nearby reachable motes in the same community
 * `z-index` - the self-asserted resource level (priority) from any mote
 * `leader` - the highest z-index mote in any set of neighbors
+* `knock` - a single transmission
+* `window` - the variable period in which a knock is transmitted, 2^16 to 2^32 microseconds (<100ms to >1hr)
+* `window sequence` - each window will change frequency/channels in a sequence
 
 ## Overview
 
 TMesh is the composite of three distinct layers, the physical radio medium encoding (PHY), the shared management of the spectrum (MAC), and the networking relationships between 2 or more motes (Mesh).
 
-Common across all of these is the concept of an `epoch`, which is a generated set of unique window sequences shared between two motes in one `medium`.  A `window` is where one `knock` can occur from one mote to another unique to that window and epoch.  A `knock` is the transmission of a 64 byte fixed frame of payload, plus any medium-specific overhead (preamble).
-
-Each epoch is the smallest divisible unit of bandwidth and is only capable of a max throughput of 120 bits per second average, approximately 1 kilobyte per minute. Every mote has at least one receiving epoch and one sending epoch per link to another mote, and will typically have multiple epochs with other motes to increase the overall bandwidth capacity and minimize latency.
-
-The number and types of epochs available depend entirely on the current energy budget, every epoch type has a fixed minimum energy cost per window to send/receive based on the medium definition.
+Common across all of these is the concept of an `epoch`, which is a generated set of unique window sequences shared between two motes in one `medium`.  A `window` is where one `knock` can occur from one mote to another unique to that window.  A `knock` is the transmission of a 64 byte fixed frame of payload, plus any medium-specific overhead (preamble).
 
 A community is any set of motes that are using a common medium definition and have enough trust to establish a telehash link for sharing peer motes and act as a router to facilitate larger scale meshing.  Within any community, the motes that can directly communicate over an epoch are called neighbors, and any neighbor that has a higher z-index is always considered the current leader and may have additional responsibilities.
 
