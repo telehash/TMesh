@@ -103,21 +103,21 @@ A single fixed 64 byte payload can be transmitted during each window in a sequen
 
 There is no mote addressing or other metadata included in the transmitted bytes, including there being no framing outside of the encrypted ciphertext in a knock.  The uniqueness of each epoch's timing and PHY encoding is the only mote addressing mechanism.
 
-Every epoch is a unique individual encrypted session between the two motes, with a shared secret key derived directly from the medium and other sources, and nonce based on the current window sequence. All payloads are encrypted with the [ChaCha20 cipher](http://cr.yp.to/chacha.html) before transmission regardless of if they are already encrypted via telehash.
+Every window sequence is a unique individual encrypted session between the two motes in one community using a randomly rotating nonce and a shared secret key derived directly from the medium, community name, and hashnames. All payloads are encrypted with the [ChaCha20 cipher](http://cr.yp.to/chacha.html) before transmission regardless of if they are already encrypted via telehash.
 
-Each mote should actively make use of multiple epochs to another mote and regularly include more efficient options to optimize the overall energy usage.  Every mote advertises their current energy resource level as a `z-index` as an additional mesh optimization strategy.
+Each mote should actively make use of multiple communities to another mote and regularly include more efficient mediums to optimize the overall energy usage.  Every mote advertises their current energy resource level as a `z-index` byte value as an additional mesh optimization strategy.
 
 ### Mesh
 
 There is two mechanisms used for enabling a larger scale mesh network with TMesh, `communities` (MAC layer) and `routers` (telehash/app layer).
 
-A `community` is defined by motes using a shared medium and the automatic sharing of other neighboring motes that it has active epochs with in that medium.  Each neighbor mote hashname is listed along with time offset, last activity, z-index, and the signal strength.  A mote may be part of more than one community but does not share neighbor mote information outside of each one.
+A `community` is defined by motes using a shared medium and the automatic sharing of other neighboring motes that it has active windows with in that medium.  Each neighbor mote hashname is listed along with time offset, last activity, z-index, and the signal strength.  A mote may be part of more than one community but does not share neighbor mote information outside of each one.
 
-The `leader` is always the neighbor with the highest z-index reachable directly, the mote with the most resources. The leader inherits the responsibility to monitor each neighbor's neighbors for other leaders and establish direct or bridged links with them.  
+The `leader` is always the neighbor with the highest z-index reachable directly, this is the mote advertising that it has the most resources available. The leader inherits the responsibility to monitor each neighbor's neighbors for other leaders and establish direct or bridged links with them.
 
-Any mote attempting to connect to a non-local hashname will use their leader as the telehash router and send it a peer request, whom will forward it to the next highest leader it is connected to until it reaches the highest in the community.  That highest resourced leader is responsible for maintaining an index of the available motes in the community.
+Any mote attempting to connect to a non-local hashname will use their leader as the telehash router and send it a peer request, whom will forward it to the next highest leader it is connected to until it reaches the highest in the community.  That highest resourced leader is responsible for maintaining an index of the available motes in the community.  Additional routing strategies should be employed by a mesh to optimize the most efficient routes and only rely on the leaders as a fallback or bootstrapping mechanism.
 
-Any mote that can provide reliable bridged connectivity to another network (wifi, ethernet, etc) should have a higher z-index and may also forward the peer request to additional telehash router(s) in the mesh via those networks.
+Any mote that can provide reliable bridged connectivity to another network (wifi, ethernet, etc) should advertise a higher z-index and may also forward any telehash peer request to additional telehash router(s) in the mesh via those networks.
 
 # Protocol Definition
 
