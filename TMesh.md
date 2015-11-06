@@ -242,17 +242,17 @@ The flag byte format is:
 
 * bit 0 is the forwarding request, 1 = forward the frame, 0 = process it
 * bit 1 is the payload format, 1 = full 63 bytes are the next chunk, 0 = the payload is the end of a complete packet and the following byte is the remainder length (from 0 to 62)
-* bit 2-7 is a position number <64 that specifies the forwarding neighbor based on their list position in the most recent neighborhood map exchanged
+* bit 2-7 is a position number (less than 64) that specifies the forwarding neighbor based on their list position in the most recent neighborhood map exchanged
 
 When receiving a forwarded frame the position number is 1 or greater, a position of 0 means the frame is direct and not forwarded.
 
-### `PING` Payload
+### PING Payload
 
 When two motes are not in sync they both transmit and receive a `PING` knock.  This knock's frame bytes always begin with the current 8-byte nonce value that was used to generate the ciphertext of the remaining 56 bytes of the frame and determine the sender's timing of the knock within the current window.
 
 Once deciphered, the first 32 bytes are the sending mote's hashname and the remaining 24 bytes are filled in with random values.
 
-### `PING` Synchronization
+### PING Synchronization
 
 The sender should only transmit a `PING` with a nonce that it knows the next window has the opposite parity of so that a recipient can immediately respond if that `PING` is detected.
 
