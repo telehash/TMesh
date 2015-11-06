@@ -246,19 +246,21 @@ The flag byte format is:
 
 When receiving a forwarded frame the position number is 1 or greater, a position of 0 means the frame is direct and not forwarded.
 
-### WIP
+### `PING` Payload
 
+When two motes are not in sync they both transmit and receive a `PING` knock.  This knock's frame bytes always begin with the current 8-byte nonce value that was used to generate the ciphertext of the remaining 56 bytes of the frame and determine the sender's timing of the knock within the current window.
 
-* public ping beacons hashname using zero'd hn0/hn1 and nonce
-  * includes potential hn
-  * once sent/received generate window based on hashnames, use last one as ping to derive nonce and time base for sync
-* sync is 64 random bytes, cipher'd using zero nonce, first 4 decipher'd are then new nonce
-  * set base nonce, calc seq 0, begin handshakes
-* ping frame first 4 bytes are from current nonce
-  * when public and exchanging handshakes, postpone other public pings
-* ping tx only w/ a nonce that has rx window next
-  * if rx'd w/ matching nonce, remove ping flag and let channels go
-  * only reset nonce based on channel scheduled ones
+Once deciphered, the first 32 bytes are the sending mote's hashname and the remaining 24 bytes are filled in with random values.
+
+### `PING` Synchronization
+
+The sender should only transmit a `PING` with a nonce that it knows the next window has the opposite parity of so that a recipient can immediately respond if that `PING` is detected.
+
+Once any mote has detected and validated any incoming `PING` from a mote it is attempting to synchronize with, it simply uses the incoming given nonce and transmits a `PING` with the next nonce in the next window. 
+
+The original sender can then detect the response `PING` that has the correct matching nonce, validate the hashname, and become synchronized.
+
+Once synchronized the channel seed begins rotating immediately so that the subsequent windows are randomly hopping different channels and the knocks become regular frame payloads.
 
 
 ## Mesh
@@ -295,29 +297,19 @@ Any mesh may make use of multiple communities to optimize the overall availabili
 
 #### Private Community
 
-A private community is not visible to any non-member, other than randomly timed knock transmissions on random channels there is no decodeable signals detectable to any third party, it is a dark mesh network that can only be joined via out of band coordination and explicit mesh membership trust.
+A private community is not visible to any non-member, other than randomly timed knock transmissions on random channels there is no decodeable signals detectable to any third party, it is a dark mesh network that can only be joined via out-of-band coordination and explicit mesh membership trust.
 
-In order for any mote to join a private community it must first have at a minimum the community name, the hashname of one or more of the current leaders of that community, and the medium on which it is operating.
+In order for any mote to join a private community it must first have at a minimum the community name, the hashname of one or more reachable motes in that community, and the medium on which it is operating. It must also have it's own hashname independently added as a trusted member to the mesh so that the reachable motes are aware of the joining one.
 
-It must also have either it's own hashname independently added as a trusted member to the leader(s), or have a handshake that will verify its mesh membership and be accepted by a leader.
-
-The three sources of a hashname (32 bytes), the medium (5 bytes), and community name (string) are combined in that order and the SHA-256 digest is generated as the secret for the `PING` epoch. and listen for a knock in that epoch. This takes advantage of the fact that the community medium is divided into the same set of channels, such that every `PING` epoch will have some overlap with other community epochs that a mote is transmitting on.  When any mote sends any knock that happens to be on the same channel as one of their `PING` epoch's (sequence 0), they should then attempt to receive an `ECHO` knock exactly one window period after the transmission.
-
-The local leader should attempt to maximize their use of their own `PING` epoch overlapping channels to allow for fast resynchronization to them, even to the point of sending arbitrary/random knocks on that channel if nothing has been transmitted recently and continuously listening for any other knocks there if resources are available. When a mote detects that it is disconnected from the private community it should also send regular knocks on the sync epoch channels of last-known nearby motes.
+The stable seed for the `PING` channel will be unique to each two motes based on the private secret for the window sequence.
 
 #### Public Community
 
-A public community is inherently visibile to any mote and should only be used for well-known or shared open services where the existince of the motes in the community is not private.  Any third party will be able to monitor participation in a public community, so they should be used minimally and only with ephemeral generated hashnames when possible.  
+A public community is inherently visibile to any mote and should only be used for well-known or shared open services where the existince of the motes in the community is not private.  Any third party will be able to monitor general participation in a public community, so they should be used minimally and only with ephemeral generated hashnames when possible.  
 
-The public community is defined only by the common medium and name, where the secret is the SHA-256 digest of the medium (5 bytes) and the name string.  These are the inputs to create a `PING` epoch that a joining mote must both listen for and repeatedly transmit knocks on until an `ECHO` is received.  Since they will both be using the same medium channel, if possible a mote should first listen for a transmission in progress before sending another knock to minimize interference.
+Since the hashnames are not known in advance, the public community window sequence secret is generated with null/zero filled hashnames so that the `PING` channel is a stable seed.  The only difference from a private community is that the hashnames sent/received in a `PING` are used as the source to generate a new window sequence secret once exchanged.
 
-The `PING` knocks must always have a random 64 byte payload so that even if the secret is known, it is not possible for a third party to determine if the knock was a `PING` or not.
-
-Once one `PING` knock has been both sent and received the mote may then derive an `ECHO` epoch and send a knock on it and listen for other `ECHO` knocks.
-
-Upon receiving any `ECHO` knock the mote should immediately create the `PAIR` epochs and begin sending/receiving a single _unencrypted_ handshake to bootstrap, and then encrypted handshakes until a `LINK` epoch is established for the public community.
-
-This functionality should not be enabled/deployed by default, it should only be used when management policy explicitly requires it for special/public use cases or temporary pairing/provisioning setup.
+This functionality should not be enabled/deployed by default, it should only be used when management policy explicitly requires it for special/public use cases, temporary pairing/provisioning setup, or with ephemeral generated hashnames used to bootstrap private communities.
 
 
 ### Optimizations
