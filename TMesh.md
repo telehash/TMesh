@@ -99,7 +99,7 @@ A single fixed 64 byte payload can be transmitted during each window in a sequen
 
 > WIP - determine a standard filler data format that will add additional dynamically sized error correction, explore taking advantage of the fact that the inner and outer bitstreams are encrypted and bias-free (Gaussian distribution divergence?)
 
-Each transmission window can go either direction between motes, the actual direction is based on the parity of the random microsecond offset of the window and the binary ascending sort order of the hashnames of the motes. A parity of 0 (even) means the low mote transmits and high mote receives, whereas a parity of 1 (odd) means the low mote receives and high mote transmits.
+Each transmission window can go either direction between motes, the actual direction is based on the parity of the current nonce and the binary ascending sort order of the hashnames of the motes. A parity of 0 (even) means the low mote transmits and high mote receives, whereas a parity of 1 (odd) means the low mote receives and high mote transmits.
 
 
 ### MAC
@@ -140,7 +140,7 @@ Most PHY transceivers require specific synchronized channel and timing inputs, i
 
 The first four bytes (32 bits) of the current nonce are used to determine the window microsecond offset timing as a network order unsigned long integer.  Each window is from 2^16 to 2^32 microseconds, the 32-bit random offset is scaled by the current z-index into the possible range of values.
 
-The current channel is determined by a private two byte value that is rotated identically to the nonce when two motes are in sync. While any two motes are synchronizing by sending PING knocks the channel must remain stable and not be rotated.  The two channel bytes are the seed for channel selection as a network order unsigned short integer.  The 2^16 total possible channels are simply mod'd to the number of usable channels based on the current medium.  If there are 50 channels, it would be `channel = seed % 50`.
+The current channel is determined by a private two byte seed value that is the ciphertext of `0x0000` using the current window secret/nonce. While any two motes are synchronizing by sending `PING` knocks the channel must remain stable by using a fixed zero nonce.  The two channel bytes are the seed for channel selection as a network order unsigned short integer.  The 2^16 total possible channels are simply mod'd to the number of usable channels based on the current medium.  If there are 50 channels, it would be `channel = seed[1] % 50`.
 
 
 ### Medium Types
