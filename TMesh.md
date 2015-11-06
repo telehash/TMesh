@@ -235,12 +235,15 @@ The secret and current nonce are used to encode/decode the chipertext of each kn
 
 ### Frame Payload
 
-* uses telehash chunking, 63-byte chunks
-* frame has first byte for to/from
-  * bit 1 is to/from
-  * bit 2 is full chunk or tail, if tail byte 2 is length
-  * bit 3-8 is neighbor slot to/from
-* neighbors can ask others to forward frames directly
+Each knock transfers a fixed 64 byte ciphertext frame between two motes.  Once the frame is deciphered it consists of one leading flag byte and 63 payload bytes.  The payload bytes are based on the simple telehash chunking pattern, where any packet is sent as a sequence of chunks of fixed size until the final remainder bytes which terminate a given packet and trigger processing.
+
+The flag byte format is:
+
+* bit 0 is the forwarding request, 1 = forward the frame, 0 = process it
+* bit 1 is the payload format, 1 = full 63 bytes are the next chunk, 0 = the payload is the end of a complete packet and the following byte is the remainder length (from 0 to 62)
+* bit 2-7 is a position number <64 that specifies the forwarding neighbor based on their list position in the most recent neighborhood map exchanged
+
+When receiving a forwarded frame the position number is 1 or greater, a position of 0 means the frame is direct and not forwarded.
 
 ### WIP
 
