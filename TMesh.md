@@ -133,13 +133,11 @@ and indicate requirement levels for compliant TMesh implementations.
 
 ### Private Hopping Sequence
 
-Most PHY encodings require specific synchronized channel and timing inputs, these are generated from the epoch's 32 byte secret via a consistent transformation.
+Most PHY transceivers require specific synchronized channel and timing inputs, in TMesh these are randomized based on the MAC encryption layer, using the unique secret and nonce for each pair of motes and current window with ChaCha20.
 
-An eight byte null/zero pad is encrypted with the current epoch secret/nonce for each window and the ciphertext result is used for channel selection, window timing, and as a seed for the next window in the sequence.
+The first four bytes (32 bits) of the current nonce are used to determine the window microsecond offset timing as a network order unsigned long integer.  Each window is from 2^16 to 2^32 microseconds, the 32-bit random offset is scaled by the current z-index into the possible range of values.
 
-The first four bytes (32 bits) are used to determine the window microsecond offset timing as a network order unsigned long integer.  Each window is from 2^16 to 2^32 microseconds, the 32-bit random offset is scaled by the current z-index into the possible range of values.
-
-The next two bytes of the ciphertext result is used for channel selection as a network order unsigned short integer.  The 2^16 total possible channels are simply mod'd to the number of usable channels based on the current medium.  If there are 50 channels, it would be `channel = ((uint16_t)pad) % 50`.
+The current channel is determined by a private two byte value that is rotated identically to the nonce when two motes are in sync. While any two motes are synchronizing by sending PING knocks the channel must remain stable and not be rotated.  The two channel bytes are the seed for channel selection as a network order unsigned short integer.  The 2^16 total possible channels are simply mod'd to the number of usable channels based on the current medium.  If there are 50 channels, it would be `channel = seed % 50`.
 
 
 ### Medium Types
@@ -227,11 +225,11 @@ Notes on ranges:
 
 ### Encrypted Knock Payload
 
-A unique 32 byte secret is derived for every pair of motes in any community. The 32 bytes are the binary digest output of multiple SHA-256 calculations of source data from the community and hashnames.  The first digest is generated from the medium (5 bytes), that output is combined with the community name (string) for a second digest, and then with the mote hashnames in sorted order.
+A unique 32 byte secret is derived for every pair of motes in any community. The 32 bytes are the binary digest output of multiple SHA-256 calculations of source data from the community and hashnames.  The first digest is generated from the medium (5 bytes), that output is combined with the community name (string) for a second digest, and then with the mote hashnames in binary ascending sorted order.
 
-The nonce is randomly generated and rotated every window.  When two motes are not in sync only half the nonce is rotated in order to keep the channel stable for private synchronization handshakes to be established.
+The 8-byte nonce is initially randomly generated and then rotated for every window using ChaCha20 identically to the knock payload.
 
-The secret and current nonce are used to encode/decode the chipertext of each knock with ChaCha20.
+The secret and current nonce are then used to encode/decode the chipertext of each knock with ChaCha20.
 
 ### Frame Payload
 
@@ -247,23 +245,7 @@ When receiving a forwarded frame the position number is 1 or greater, a position
 
 ### WIP
 
-Nonce: 
 
-* 8 bytes are encrypted
-  * 4 for microsecond offset of next window, mask for speed
-  * 4 for channel seed
-  * output is used as nonce for next encryption
-
-Neighborhood:
-
-* 4 byte sequence
-* 4 byte ūs ago
-* z, 4 bits is mask, 4 bits is sort (energy reserve)
-  * must be confirmed to change mask
-    * scheduled to be active at a future nonce
-  * z sent in channel
-  * default z on start/reset is set by medium
-* rssi
 
 
 * secrets always hash(comm)+hash(medium)+hash(hn0)+hash(hn1)
@@ -287,11 +269,23 @@ Neighborhood:
 
 Every mote calculates its own `z-index`, a uint8_t value that represents the resources it has available to assist with the mesh.  It will vary based on the battery level or fixed power, as well as if the mote has greater network access (is an internet bridge) or is well located (based on configuration).
 
-The z-index also serves as a window mask for all of that mote's receiving window sizes by powers of two (128+ is all windows, 64-127 is half the windows, etc). This enables motes to greatly reduce the time required waking and listening for low power and high latency applications.
+The z-index also serves as a window mask for all of that mote's receiving window sizes. This enables motes to greatly reduce the time required waking and listening for low power and high latency applications.
+
+The first 4 bits is the window mask, and the second 4 bits are the energy resource level.
+
+The initial/default z-index value is determined by the medium as a fixed value to ensure every community can bootstrap uniformly.  It is then updated dynamically by any mote in the neighborhood channel by sending the desired z-index value along with a _future_ nonce at which it will become active.  This ensures that any two motes will stay in sync given the time scaling factor in the z-index.
+
 
 ### Neighbors
 
 Each mote should share enough detail about its active neighbors with every neighbor so that a neighborhood map can be maintained.  This includes the relative sync time of each mote such that a neighbor can predict when a mote will be listening or may be transmitting to another nearby mote.
+
+Neighborhood:
+
+* 8 byte nonce
+* 4 byte microseconds ago last knock
+* 1 byte z index
+* 1 byte rssi
 
 ### Communities
 
