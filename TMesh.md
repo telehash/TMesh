@@ -99,6 +99,9 @@ A single fixed 64 byte payload can be transmitted during each window in a sequen
 
 > WIP - determine a standard filler data format that will add additional dynamically sized error correction, explore taking advantage of the fact that the inner and outer bitstreams are encrypted and bias-free (Gaussian distribution divergence?)
 
+Each transmission window can go either direction between motes, the actual direction is based on the parity of the random microsecond offset of the window and the binary ascending sort order of the hashnames of the motes. A parity of 0 (even) means the low mote transmits and high mote receives, whereas a parity of 1 (odd) means the low mote receives and high mote transmits.
+
+
 ### MAC
 
 There is no mote addressing or other metadata included in the transmitted bytes, including there being no framing outside of the encrypted ciphertext in a knock.  The uniqueness of each epoch's timing and PHY encoding is the only mote addressing mechanism.
@@ -246,9 +249,6 @@ When receiving a forwarded frame the position number is 1 or greater, a position
 ### WIP
 
 
-
-
-* secrets always hash(comm)+hash(medium)+hash(hn0)+hash(hn1)
 * public ping beacons hashname using zero'd hn0/hn1 and nonce
   * includes potential hn
   * once sent/received generate window based on hashnames, use last one as ping to derive nonce and time base for sync
@@ -260,8 +260,6 @@ When receiving a forwarded frame the position number is 1 or greater, a position
   * if rx'd w/ matching nonce, remove ping flag and let channels go
   * only reset nonce based on channel scheduled ones
 
-* neighborhood map sends each nonce + offset + z
-* each window is a tx/rx, the microsecond offset even/odd determins polarity of hashnames, match=tx
 
 ## Mesh
 
