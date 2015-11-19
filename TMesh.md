@@ -79,9 +79,7 @@ By leveraging [telehash][] as the native encryption and mote identity platform, 
 
 TMesh is the composite of three distinct layers, the physical radio medium encoding (PHY), the shared management of the spectrum (MAC), and the networking relationships between 2 or more motes (Mesh).
 
-Common across all of these is the concept of an `epoch`, which is a generated set of unique window sequences shared between two motes in one `medium`.  A `window` is where one `knock` can occur from one mote to another unique to that window.  A `knock` is the transmission of a 64 byte fixed frame of payload, plus any medium-specific overhead (preamble).
-
-A community is any set of motes that are using a common medium definition and have enough trust to establish a telehash link for sharing peer motes and act as a router to facilitate larger scale meshing.  Within any community, the motes that can directly communicate over an epoch are called neighbors, and any neighbor that has a higher z-index is always considered the current leader and may have additional responsibilities.
+A community is any set of motes that are using a common medium definition and have enough trust to establish a telehash link for sharing peers and acting as a router to facilitate larger scale meshing.  Within any community, the motes that can directly communicate over a medium are called neighbors, and any neighbor that has a higher z-index is always considered the current leader that may have additional responsibilities.
 
 ### PHY
 
@@ -104,7 +102,7 @@ Each transmission window can go either direction between motes, the actual direc
 
 ### MAC
 
-There is no mote addressing or other metadata included in the transmitted bytes, including there being no framing outside of the encrypted ciphertext in a knock.  The uniqueness of each epoch's timing and PHY encoding is the only mote addressing mechanism.
+There is no mote addressing or other metadata included in the transmitted bytes, including there being no framing outside of the encrypted ciphertext in a knock.  The uniqueness of each knock's timing and PHY encoding is the only mote addressing mechanism.
 
 Every window sequence is a unique individual encrypted session between the two motes in one community using a randomly rotating nonce and a shared secret key derived directly from the medium, community name, and hashnames. All payloads are encrypted with the [ChaCha20 cipher](http://cr.yp.to/chacha.html) before transmission regardless of if they are already encrypted via telehash.
 
@@ -193,7 +191,7 @@ The `energy byte` (1) table:
 
 #### LoRa
 
-Epoch Header
+Medium Header
 
 * byte 2 - standard frequency range (see table)
 * byte 3 - Bw & CodingRate (RegModemConfig 1)
@@ -212,7 +210,7 @@ Freq Table:
 | Japan  | 915 | 930  |          | ARIB T-108      | 0x03 |
 | China  | 779 | 787  | 10       | SRRC            | 0x04 |
 
-In the US region 0x01 to reach maximum transmit power each window may not transmit on a channel for more than 400ms, when that limit is reached a new channel must be derived from the epoch (TBD) and hopped to.  See [App Note](https://www.semtech.com/images/promo/FCC_Part15_regulations_Semtech.pdf).
+In the US region 0x01 to reach maximum transmit power each window may not transmit on a channel for more than 400ms, when that limit is reached a new channel must be derived from the knock (TBD) and hopped to.  See [App Note](https://www.semtech.com/images/promo/FCC_Part15_regulations_Semtech.pdf).
 
 Notes on ranges:
 * [SRRC](http://www.srrccn.org/srrc-approval-new2.htm)
@@ -314,7 +312,7 @@ This functionality should not be enabled/deployed by default, it should only be 
 
 ### Optimizations
 
-Since a community includes the automated sharing the time offsets of neighbors, any mote can then calculate keep-out channels/timing of other motes based on their shared community epochs and optimize the overall medium usage.  In this way, the community epochs act as a higher QoS path between motes, but reduce the privacy of transmissions by informing the neighbors of the windows.
+Since a community includes the automated sharing the time offsets of neighbors, any mote can then calculate keep-out channels/timing of other motes based on their shared community windows and optimize the overall medium usage.  In this way, each community will have its own QoS based on each local neighborhood.
 
 
 
