@@ -69,7 +69,7 @@ Table of Contents
        1.4.3.  Mesh . . . . . . . . . . . . . . . . . . . . . . . . .  7
    2.  Protocol Definition  . . . . . . . . . . . . . . . . . . . . .  7
      2.1.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  7
-     2.2.  PHY  . . . . . . . . . . . . . . . . . . . . . . . . . . .  8
+     2.2.  PHY  . . . . . . . . . . . . . . . . . . . . . . . . . . .  7
        2.2.1.  Private Hopping Sequence . . . . . . . . . . . . . . .  8
        2.2.2.  Medium Types . . . . . . . . . . . . . . . . . . . . .  8
      2.3.  MAC  . . . . . . . . . . . . . . . . . . . . . . . . . . . 10
@@ -181,8 +181,7 @@ Internet-Draft                    tmesh                         May 2015
 
    o  each mote will have a unique stable 32-byte identity, the hashname
 
-   o  two linked motes will have a unique long-lived session id, the
-      routing token
+   o  two linked motes will have a unique long-lived session id
 
    o  all payloads will be encrypted ciphertext with forward secrecy
 
@@ -220,6 +219,7 @@ Internet-Draft                    tmesh                         May 2015
 
 
 
+
 Miller                  Expires November 17, 2015               [Page 4]
 
 Internet-Draft                    tmesh                         May 2015
@@ -234,19 +234,12 @@ Internet-Draft                    tmesh                         May 2015
    medium encoding (PHY), the shared management of the spectrum (MAC),
    and the networking relationships between 2 or more motes (Mesh).
 
-   Common across all of these is the concept of an "epoch", which is a
-   generated set of unique window sequences shared between two motes in
-   one "medium".  A "window" is where one "knock" can occur from one
-   mote to another unique to that window.  A "knock" is the transmission
-   of a 64 byte fixed frame of payload, plus any medium-specific
-   overhead (preamble).
-
    A community is any set of motes that are using a common medium
    definition and have enough trust to establish a telehash link for
-   sharing peer motes and act as a router to facilitate larger scale
+   sharing peers and acting as a router to facilitate larger scale
    meshing.  Within any community, the motes that can directly
-   communicate over an epoch are called neighbors, and any neighbor that
-   has a higher z-index is always considered the current leader and may
+   communicate over a medium are called neighbors, and any neighbor that
+   has a higher z-index is always considered the current leader that may
    have additional responsibilities.
 
 1.4.1.  PHY
@@ -263,7 +256,8 @@ Internet-Draft                    tmesh                         May 2015
    medium is for public communities (bit "0", values from 0-127) or
    private communities (bit "1", values from 128-255).  The other bits
    in the "type" map directly to different PHY modes on transceivers or
-   different drivers entirely.
+   different hardware drivers entirely and are detailed in the "PHY"
+   section.
 
    "Byte 1" is the maximum energy boost requirements for that medium
    both for transmission and reception.  While a mote may determine that
@@ -273,6 +267,12 @@ Internet-Draft                    tmesh                         May 2015
    the additional TX energy, and the second half for the additional RX
    energy.  While different hardware devices will vary on exact mappings
    of mA to the 1-16 range of values, effort will be made to define
+   general buckets and greater definitions to encourage compatibility
+   for efficiency estimation purposes.
+
+   Each PHY driver uses the remaining medium "bytes 2, 3, and 4" to
+   determine the frequency range, number of channels, spreading,
+   bitrate, error correction usage, regulatory requirements, channel
 
 
 
@@ -281,14 +281,8 @@ Miller                  Expires November 17, 2015               [Page 5]
 Internet-Draft                    tmesh                         May 2015
 
 
-   general buckets and greater definitions to encourage compatibility
-   for efficiency estimation purposes.
-
-   Each PHY driver uses the remaining medium "bytes 2, 3, and 4" to
-   determine the power, frequency range, number of channels, spreading,
-   bitrate, error correction usage, regulatory requirements, channel
-   dwell time, etc details on the transmission/reception.  The dynamic
-   channel frequency hopping and transmission window timing are derived
+   dwell time, etc details on the transmission/reception.  The channel
+   frequency hopping and transmission window timing are derived
    dynamically and not included in the medium.
 
    Transmitted payloads do not generally need whitening as encrypted
@@ -297,8 +291,8 @@ Internet-Draft                    tmesh                         May 2015
    integrity verification.
 
    A single fixed 64 byte payload can be transmitted during each window
-   in a sequence, this is called a "knock".  If the un-encrypted payload
-   does not fill the full 64 byte frame the remaining bytes must contain
+   in a sequence, this is called a "knock".  If the payload does not
+   fill the full 64 byte frame the remaining bytes must contain
    additional data so as to not reveal the actual payload size.
 
       WIP - determine a standard filler data format that will add
@@ -317,18 +311,24 @@ Internet-Draft                    tmesh                         May 2015
 
    There is no mote addressing or other metadata included in the
    transmitted bytes, including there being no framing outside of the
-   encrypted ciphertext in a knock.  The uniqueness of each epoch's
+   encrypted ciphertext in a knock.  The uniqueness of each knock's
    timing and PHY encoding is the only mote addressing mechanism.
 
    Every window sequence is a unique individual encrypted session
    between the two motes in one community using a randomly rotating
    nonce and a shared secret key derived directly from the medium,
-   community name, and hashnames.  All payloads are encrypted with the
-   ChaCha20 cipher [2] before transmission regardless of if they are
-   already encrypted via telehash.
+   community name, and hashnames.  All payloads are additionally
+   encrypted with the ChaCha20 cipher [2] before transmission regardless
+   of if they are already encrypted via telehash.
 
    Each mote should actively make use of multiple communities to another
-   mote and regularly include more efficient mediums to optimize the
+   mote and regularly test more efficient mediums to optimize the
+   overall energy usage.  Every mote advertises their current local
+   energy availability level as a "z-index" (single byte value) to
+   facilitate community-wide optimization strategies.
+
+
+
 
 
 
@@ -336,10 +336,6 @@ Miller                  Expires November 17, 2015               [Page 6]
 
 Internet-Draft                    tmesh                         May 2015
 
-
-   overall energy usage.  Every mote advertises their current energy
-   resource level as a "z-index" byte value as an additional mesh
-   optimization strategy.
 
 1.4.3.  Mesh
 
@@ -350,9 +346,9 @@ Internet-Draft                    tmesh                         May 2015
    A "community" is defined by motes using a shared medium and the
    automatic sharing of other neighboring motes that it has active
    windows with in that medium.  Each neighbor mote hashname is listed
-   along with time offset, last activity, z-index, and the signal
-   strength.  A mote may be part of more than one community but does not
-   share neighbor mote information outside of each one.
+   along with next nonce, last seen, z-index, and the signal strength.
+   A mote may be part of more than one community but does not share
+   neighbor mote information outside of each one.
 
    The "leader" is always the neighbor with the highest z-index
    reachable directly, this is the mote advertising that it has the most
@@ -385,6 +381,10 @@ Internet-Draft                    tmesh                         May 2015
    2119] and indicate requirement levels for compliant TMesh
    implementations.
 
+2.2.  PHY
+
+
+
 
 
 
@@ -392,8 +392,6 @@ Miller                  Expires November 17, 2015               [Page 7]
 
 Internet-Draft                    tmesh                         May 2015
 
-
-2.2.  PHY
 
 2.2.1.  Private Hopping Sequence
 
@@ -444,6 +442,8 @@ Internet-Draft                    tmesh                         May 2015
 
 
 
+
+
 Miller                  Expires November 17, 2015               [Page 8]
 
 Internet-Draft                    tmesh                         May 2015
@@ -483,7 +483,7 @@ Internet-Draft                    tmesh                         May 2015
 
 2.2.2.3.  LoRa
 
-   Epoch Header
+   Medium Header
 
    o  byte 2 - standard frequency range (see table)
 
@@ -516,7 +516,7 @@ Internet-Draft                    tmesh                         May 2015
 
    In the US region 0x01 to reach maximum transmit power each window may
    not transmit on a channel for more than 400ms, when that limit is
-   reached a new channel must be derived from the epoch (TBD) and hopped
+   reached a new channel must be derived from the nonce (TBD) and hopped
    to.  See App Note [3].
 
    Notes on ranges:
@@ -539,8 +539,9 @@ Internet-Draft                    tmesh                         May 2015
    community.  The 32 bytes are the binary digest output of multiple
    SHA-256 calculations of source data from the community and hashnames.
    The first digest is generated from the medium (5 bytes), that output
-   is combined with the community name (string) for a second digest, and
-   then with the mote hashnames in binary ascending sorted order.
+   is combined with a digest of the community name for a second digest.
+   The third and fourth digests are generated by combining the previous
+   one with each mote hashname in binary ascending sorted order.
 
    The 8-byte nonce is initially randomly generated and then rotated for
    every window using ChaCha20 identically to the knock payload.
@@ -552,7 +553,6 @@ Internet-Draft                    tmesh                         May 2015
 
    Each knock transfers a fixed 64 byte ciphertext frame between two
    motes.  Once the frame is deciphered it consists of one leading flag
-   byte and 63 payload bytes.  The payload bytes are based on the simple
 
 
 
@@ -561,6 +561,7 @@ Miller                  Expires November 17, 2015              [Page 10]
 Internet-Draft                    tmesh                         May 2015
 
 
+   byte and 63 payload bytes.  The payload bytes are based on the simple
    telehash chunking pattern, where any packet is sent as a sequence of
    chunks of fixed size until the final remainder bytes which terminate
    a given packet and trigger processing.
@@ -572,7 +573,7 @@ Internet-Draft                    tmesh                         May 2015
 
    o  bit 1 is the payload format, 1 = full 63 bytes are the next chunk,
       0 = the payload is the end of a complete packet and the following
-      byte is the remainder length (from 0 to 62)
+      byte is the remainder length (from 1 to 62)
 
    o  bit 2-7 is a position number (less than 64) that specifies the
       forwarding neighbor based on their list position in the most
@@ -589,26 +590,25 @@ Internet-Draft                    tmesh                         May 2015
    remaining 56 bytes of the frame and determine the sender's timing of
    the knock within the current window.
 
-   Once deciphered, the first 32 bytes are the sending mote's hashname
-   and the remaining 24 bytes are filled in with random values.
+   Once deciphered the first 8 bytes are the next nonce the sender will
+   be listening for, followed by the 32 bytes of the sending mote's
+   hashname.  All remaining bytes are filled in with random values.
 
 2.3.4.  PING Synchronization
 
-   The sender should only transmit a "PING" with a nonce that it knows
-   the next window has the opposite parity of so that a recipient can
-   immediately respond if that "PING" is detected.
+   The sender should only transmit a "PING" that includes a next nonce
+   with the opposite parity so that a recipient can immediately respond
+   in that upcoming window sequence if that "PING" is detected.
 
    Once any mote has detected and validated any incoming "PING" from a
    mote it is attempting to synchronize with, it simply uses the
-   incoming given nonce and transmits a "PING" with the next nonce in
+   incoming nonce and waits for the next nonce to transmits a "PING" in
    the next window.
 
    The original sender can then detect the response "PING" that has the
    correct matching nonce, validate the hashname, and become
    synchronized.
 
-   Once synchronized the channel seed begins rotating immediately so
-   that the subsequent windows are randomly hopping different channels
 
 
 
@@ -617,6 +617,8 @@ Miller                  Expires November 17, 2015              [Page 11]
 Internet-Draft                    tmesh                         May 2015
 
 
+   Once synchronized the channel seed begins rotating immediately so
+   that the subsequent windows are randomly hopping different channels
    and the knocks become regular frame payloads.
 
 2.4.  Mesh
@@ -661,8 +663,6 @@ Internet-Draft                    tmesh                         May 2015
    o  1 byte z index
 
    o  1 byte rssi
-
-
 
 
 
@@ -741,10 +741,9 @@ Internet-Draft                    tmesh                         May 2015
 
    Since a community includes the automated sharing the time offsets of
    neighbors, any mote can then calculate keep-out channels/timing of
-   other motes based on their shared community epochs and optimize the
-   overall medium usage.  In this way, the community epochs act as a
-   higher QoS path between motes, but reduce the privacy of
-   transmissions by informing the neighbors of the windows.
+   other motes based on their shared community windows and optimize the
+   overall medium usage.  In this way, each community will have its own
+   QoS based on each local neighborhood.
 
 
 3.  Implementation Notes
@@ -777,6 +776,7 @@ URIs
         phpapp01/95/smart-home-tech-short-14-728.jpg>
 
    [6]  <http://blog.atmel.com/2013/04/23/
+        praise-the-lord-a-new-sub-1ghz-rf-transceiver-supporting-4-
 
 
 
@@ -785,7 +785,6 @@ Miller                  Expires November 17, 2015              [Page 14]
 Internet-Draft                    tmesh                         May 2015
 
 
-        praise-the-lord-a-new-sub-1ghz-rf-transceiver-supporting-4-
         major-regional-frequency-bands/>
 
 
@@ -809,6 +808,7 @@ Author's Address
 
    Email: jeremie@jabber.org
    URI:
+
 
 
 

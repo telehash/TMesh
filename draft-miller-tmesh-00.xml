@@ -79,7 +79,7 @@
 <t>
 <list style="symbols">
 <t>each mote will have a unique stable 32-byte identity, the hashname</t>
-<t>two linked motes will have a unique long-lived session id, the routing token</t>
+<t>two linked motes will have a unique long-lived session id</t>
 <t>all payloads will be encrypted ciphertext with forward secrecy</t>
 <t>retransmissions and acknowledgements happen at a higher level and are not required in the framing</t>
 <t>motes are members of a private mesh and only communicate with other verified members</t>
@@ -107,23 +107,21 @@
 <section anchor="overview" title="Overview">
 <t>TMesh is the composite of three distinct layers, the physical radio medium encoding (PHY), the shared management of the spectrum (MAC), and the networking relationships between 2 or more motes (Mesh).
 </t>
-<t>Common across all of these is the concept of an <spanx style="verb">epoch</spanx>, which is a generated set of unique window sequences shared between two motes in one <spanx style="verb">medium</spanx>.  A <spanx style="verb">window</spanx> is where one <spanx style="verb">knock</spanx> can occur from one mote to another unique to that window.  A <spanx style="verb">knock</spanx> is the transmission of a 64 byte fixed frame of payload, plus any medium-specific overhead (preamble).
-</t>
-<t>A community is any set of motes that are using a common medium definition and have enough trust to establish a telehash link for sharing peer motes and act as a router to facilitate larger scale meshing.  Within any community, the motes that can directly communicate over an epoch are called neighbors, and any neighbor that has a higher z-index is always considered the current leader and may have additional responsibilities.
+<t>A community is any set of motes that are using a common medium definition and have enough trust to establish a telehash link for sharing peers and acting as a router to facilitate larger scale meshing.  Within any community, the motes that can directly communicate over a medium are called neighbors, and any neighbor that has a higher z-index is always considered the current leader that may have additional responsibilities.
 </t>
 
 <section anchor="phy" title="PHY">
 <t>A <spanx style="verb">medium</spanx> is a compact 5 byte definition of the exact PHY encoding details required for a radio to operate.  The 5 bytes are always string encoded as 8 base32 characters for ease of use in JSON and configuration storage, an example medium is <spanx style="verb">azdhpa5r</spanx> which is 0x06, 0x46, 0x77, 0x83, 0xb1.
 </t>
-<t><spanx style="verb">Byte 0</spanx> is the primary <spanx style="verb">type</spanx> that determines if the medium is for a public or private community and the overall category of PHY encoding technique to use.  The first/high bit of <spanx style="verb">byte 0</spanx> determins if the medium is for public communities (bit <spanx style="verb">0</spanx>, values from 0-127) or private communities (bit <spanx style="verb">1</spanx>, values from 128-255).  The other bits in the <spanx style="verb">type</spanx> map directly to different PHY modes on transceivers or different drivers entirely.
+<t><spanx style="verb">Byte 0</spanx> is the primary <spanx style="verb">type</spanx> that determines if the medium is for a public or private community and the overall category of PHY encoding technique to use.  The first/high bit of <spanx style="verb">byte 0</spanx> determins if the medium is for public communities (bit <spanx style="verb">0</spanx>, values from 0-127) or private communities (bit <spanx style="verb">1</spanx>, values from 128-255).  The other bits in the <spanx style="verb">type</spanx> map directly to different PHY modes on transceivers or different hardware drivers entirely and are detailed in the <spanx style="verb">PHY</spanx> section.
 </t>
 <t><spanx style="verb">Byte 1</spanx> is the maximum energy boost requirements for that medium both for transmission and reception.  While a mote may determine that it can use less energy and optimize it's usage, this byte value sets an upper bar so that a worst case can always be independently estimated.  The energy byte is in two 4-bit parts, the first half for the additional TX energy, and the second half for the additional RX energy.  While different hardware devices will vary on exact mappings of mA to the 1-16 range of values, effort will be made to define general buckets and greater definitions to encourage compatibility for efficiency estimation purposes.
 </t>
-<t>Each PHY driver uses the remaining medium <spanx style="verb">bytes 2, 3, and 4</spanx> to determine the power, frequency range, number of channels, spreading, bitrate, error correction usage, regulatory requirements, channel dwell time, etc details on the transmission/reception.  The dynamic channel frequency hopping and transmission window timing are derived dynamically and not included in the medium.
+<t>Each PHY driver uses the remaining medium <spanx style="verb">bytes 2, 3, and 4</spanx> to determine the frequency range, number of channels, spreading, bitrate, error correction usage, regulatory requirements, channel dwell time, etc details on the transmission/reception.  The channel frequency hopping and transmission window timing are derived dynamically and not included in the medium.
 </t>
 <t>Transmitted payloads do not generally need whitening as encrypted packets are by nature DC-free.  They also do not explicitly require CRC as all telehash packets have authentication bytes included for integrity verification.
 </t>
-<t>A single fixed 64 byte payload can be transmitted during each window in a sequence, this is called a <spanx style="verb">knock</spanx>.  If the un-encrypted payload does not fill the full 64 byte frame the remaining bytes must contain additional data so as to not reveal the actual payload size.
+<t>A single fixed 64 byte payload can be transmitted during each window in a sequence, this is called a <spanx style="verb">knock</spanx>.  If the payload does not fill the full 64 byte frame the remaining bytes must contain additional data so as to not reveal the actual payload size.
 </t>
 <t><list style="empty">
 <t>WIP - determine a standard filler data format that will add additional dynamically sized error correction, explore taking advantage of the fact that the inner and outer bitstreams are encrypted and bias-free (Gaussian distribution divergence?)
@@ -134,18 +132,18 @@
 </section>
 
 <section anchor="mac" title="MAC">
-<t>There is no mote addressing or other metadata included in the transmitted bytes, including there being no framing outside of the encrypted ciphertext in a knock.  The uniqueness of each epoch's timing and PHY encoding is the only mote addressing mechanism.
+<t>There is no mote addressing or other metadata included in the transmitted bytes, including there being no framing outside of the encrypted ciphertext in a knock.  The uniqueness of each knock's timing and PHY encoding is the only mote addressing mechanism.
 </t>
-<t>Every window sequence is a unique individual encrypted session between the two motes in one community using a randomly rotating nonce and a shared secret key derived directly from the medium, community name, and hashnames. All payloads are encrypted with the <eref target="http://cr.yp.to/chacha.html">ChaCha20 cipher</eref> before transmission regardless of if they are already encrypted via telehash.
+<t>Every window sequence is a unique individual encrypted session between the two motes in one community using a randomly rotating nonce and a shared secret key derived directly from the medium, community name, and hashnames. All payloads are additionally encrypted with the <eref target="http://cr.yp.to/chacha.html">ChaCha20 cipher</eref> before transmission regardless of if they are already encrypted via telehash.
 </t>
-<t>Each mote should actively make use of multiple communities to another mote and regularly include more efficient mediums to optimize the overall energy usage.  Every mote advertises their current energy resource level as a <spanx style="verb">z-index</spanx> byte value as an additional mesh optimization strategy.
+<t>Each mote should actively make use of multiple communities to another mote and regularly test more efficient mediums to optimize the overall energy usage.  Every mote advertises their current local energy availability level as a <spanx style="verb">z-index</spanx> (single byte value) to facilitate community-wide optimization strategies.
 </t>
 </section>
 
 <section anchor="mesh" title="Mesh">
 <t>There is two mechanisms used for enabling a larger scale mesh network with TMesh, <spanx style="verb">communities</spanx> (MAC layer) and <spanx style="verb">routers</spanx> (telehash/app layer).
 </t>
-<t>A <spanx style="verb">community</spanx> is defined by motes using a shared medium and the automatic sharing of other neighboring motes that it has active windows with in that medium.  Each neighbor mote hashname is listed along with time offset, last activity, z-index, and the signal strength.  A mote may be part of more than one community but does not share neighbor mote information outside of each one.
+<t>A <spanx style="verb">community</spanx> is defined by motes using a shared medium and the automatic sharing of other neighboring motes that it has active windows with in that medium.  Each neighbor mote hashname is listed along with next nonce, last seen, z-index, and the signal strength.  A mote may be part of more than one community but does not share neighbor mote information outside of each one.
 </t>
 <t>The <spanx style="verb">leader</spanx> is always the neighbor with the highest z-index reachable directly, this is the mote advertising that it has the most resources available. The leader inherits the responsibility to monitor each neighbor's neighbors for other leaders and establish direct or bridged links with them.
 </t>
@@ -242,7 +240,7 @@ and indicate requirement levels for compliant TMesh implementations.
 </section>
 
 <section anchor="lora" title="LoRa">
-<t>Epoch Header
+<t>Medium Header
 </t>
 <t>
 <list style="symbols">
@@ -270,7 +268,7 @@ and indicate requirement levels for compliant TMesh implementations.
 <c>Japan</c><c>915</c><c>930</c><c></c><c>ARIB T-108</c><c>0x03</c>
 <c>China</c><c>779</c><c>787</c><c>10</c><c>SRRC</c><c>0x04</c>
 </texttable>
-<t>In the US region 0x01 to reach maximum transmit power each window may not transmit on a channel for more than 400ms, when that limit is reached a new channel must be derived from the epoch (TBD) and hopped to.  See <eref target="https://www.semtech.com/images/promo/FCC_Part15_regulations_Semtech.pdf">App Note</eref>.
+<t>In the US region 0x01 to reach maximum transmit power each window may not transmit on a channel for more than 400ms, when that limit is reached a new channel must be derived from the nonce (TBD) and hopped to.  See <eref target="https://www.semtech.com/images/promo/FCC_Part15_regulations_Semtech.pdf">App Note</eref>.
 </t>
 <t>Notes on ranges:
 </t>
@@ -295,7 +293,7 @@ and indicate requirement levels for compliant TMesh implementations.
 <section anchor="mac-1" title="MAC">
 
 <section anchor="encrypted-knock-payload" title="Encrypted Knock Payload">
-<t>A unique 32 byte secret is derived for every pair of motes in any community. The 32 bytes are the binary digest output of multiple SHA-256 calculations of source data from the community and hashnames.  The first digest is generated from the medium (5 bytes), that output is combined with the community name (string) for a second digest, and then with the mote hashnames in binary ascending sorted order.
+<t>A unique 32 byte secret is derived for every pair of motes in any community. The 32 bytes are the binary digest output of multiple SHA-256 calculations of source data from the community and hashnames.  The first digest is generated from the medium (5 bytes), that output is combined with a digest of the community name for a second digest. The third and fourth digests are generated by combining the previous one with each mote hashname in binary ascending sorted order.
 </t>
 <t>The 8-byte nonce is initially randomly generated and then rotated for every window using ChaCha20 identically to the knock payload.
 </t>
@@ -311,7 +309,7 @@ and indicate requirement levels for compliant TMesh implementations.
 <t>
 <list style="symbols">
 <t>bit 0 is the forwarding request, 1 = forward the frame, 0 = process it</t>
-<t>bit 1 is the payload format, 1 = full 63 bytes are the next chunk, 0 = the payload is the end of a complete packet and the following byte is the remainder length (from 0 to 62)</t>
+<t>bit 1 is the payload format, 1 = full 63 bytes are the next chunk, 0 = the payload is the end of a complete packet and the following byte is the remainder length (from 1 to 62)</t>
 <t>bit 2-7 is a position number (less than 64) that specifies the forwarding neighbor based on their list position in the most recent neighborhood map exchanged</t>
 </list>
 </t>
@@ -322,14 +320,14 @@ and indicate requirement levels for compliant TMesh implementations.
 <section anchor="ping-payload" title="PING Payload">
 <t>When two motes are not in sync they both transmit and receive a <spanx style="verb">PING</spanx> knock.  This knock's frame bytes always begin with the current 8-byte nonce value that was used to generate the ciphertext of the remaining 56 bytes of the frame and determine the sender's timing of the knock within the current window.
 </t>
-<t>Once deciphered, the first 32 bytes are the sending mote's hashname and the remaining 24 bytes are filled in with random values.
+<t>Once deciphered the first 8 bytes are the next nonce the sender will be listening for, followed by the 32 bytes of the sending mote's hashname.  All remaining bytes are filled in with random values.
 </t>
 </section>
 
 <section anchor="ping-synchronization" title="PING Synchronization">
-<t>The sender should only transmit a <spanx style="verb">PING</spanx> with a nonce that it knows the next window has the opposite parity of so that a recipient can immediately respond if that <spanx style="verb">PING</spanx> is detected.
+<t>The sender should only transmit a <spanx style="verb">PING</spanx> that includes a next nonce with the opposite parity so that a recipient can immediately respond in that upcoming window sequence if that <spanx style="verb">PING</spanx> is detected.
 </t>
-<t>Once any mote has detected and validated any incoming <spanx style="verb">PING</spanx> from a mote it is attempting to synchronize with, it simply uses the incoming given nonce and transmits a <spanx style="verb">PING</spanx> with the next nonce in the next window.
+<t>Once any mote has detected and validated any incoming <spanx style="verb">PING</spanx> from a mote it is attempting to synchronize with, it simply uses the incoming nonce and waits for the next nonce to transmits a <spanx style="verb">PING</spanx> in the next window.
 </t>
 <t>The original sender can then detect the response <spanx style="verb">PING</spanx> that has the correct matching nonce, validate the hashname, and become synchronized.
 </t>
@@ -396,7 +394,7 @@ and indicate requirement levels for compliant TMesh implementations.
 </section>
 
 <section anchor="optimizations" title="Optimizations">
-<t>Since a community includes the automated sharing the time offsets of neighbors, any mote can then calculate keep-out channels/timing of other motes based on their shared community epochs and optimize the overall medium usage.  In this way, the community epochs act as a higher QoS path between motes, but reduce the privacy of transmissions by informing the neighbors of the windows.
+<t>Since a community includes the automated sharing the time offsets of neighbors, any mote can then calculate keep-out channels/timing of other motes based on their shared community windows and optimize the overall medium usage.  In this way, each community will have its own QoS based on each local neighborhood.
 </t>
 </section>
 </section>
