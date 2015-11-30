@@ -57,7 +57,7 @@ All other options only provide incomplete or indadequate security and privacy, m
 By leveraging [telehash][] as the native encryption and mote identity platform, TMesh can start with some strong assumptions:
 
 * each mote will have a unique stable 32-byte identity, the hashname
-* two linked motes will have a unique long-lived session id, the routing token
+* two linked motes will have a unique long-lived session id
 * all payloads will be encrypted ciphertext with forward secrecy
 * retransmissions and acknowledgements happen at a higher level and are not required in the framing
 * motes are members of a private mesh and only communicate with other verified members
@@ -85,15 +85,15 @@ A community is any set of motes that are using a common medium definition and ha
 
 A `medium` is a compact 5 byte definition of the exact PHY encoding details required for a radio to operate.  The 5 bytes are always string encoded as 8 base32 characters for ease of use in JSON and configuration storage, an example medium is `azdhpa5r` which is 0x06, 0x46, 0x77, 0x83, 0xb1.
 
-`Byte 0` is the primary `type` that determines if the medium is for a public or private community and the overall category of PHY encoding technique to use.  The first/high bit of `byte 0` determins if the medium is for public communities (bit `0`, values from 0-127) or private communities (bit `1`, values from 128-255).  The other bits in the `type` map directly to different PHY modes on transceivers or different drivers entirely.
+`Byte 0` is the primary `type` that determines if the medium is for a public or private community and the overall category of PHY encoding technique to use.  The first/high bit of `byte 0` determins if the medium is for public communities (bit `0`, values from 0-127) or private communities (bit `1`, values from 128-255).  The other bits in the `type` map directly to different PHY modes on transceivers or different hardware drivers entirely and are detailed in the `PHY` section.
 
 `Byte 1` is the maximum energy boost requirements for that medium both for transmission and reception.  While a mote may determine that it can use less energy and optimize it's usage, this byte value sets an upper bar so that a worst case can always be independently estimated.  The energy byte is in two 4-bit parts, the first half for the additional TX energy, and the second half for the additional RX energy.  While different hardware devices will vary on exact mappings of mA to the 1-16 range of values, effort will be made to define general buckets and greater definitions to encourage compatibility for efficiency estimation purposes.
 
-Each PHY driver uses the remaining medium `bytes 2, 3, and 4` to determine the power, frequency range, number of channels, spreading, bitrate, error correction usage, regulatory requirements, channel dwell time, etc details on the transmission/reception.  The dynamic channel frequency hopping and transmission window timing are derived dynamically and not included in the medium.
+Each PHY driver uses the remaining medium `bytes 2, 3, and 4` to determine the frequency range, number of channels, spreading, bitrate, error correction usage, regulatory requirements, channel dwell time, etc details on the transmission/reception.  The channel frequency hopping and transmission window timing are derived dynamically and not included in the medium.
 
 Transmitted payloads do not generally need whitening as encrypted packets are by nature DC-free.  They also do not explicitly require CRC as all telehash packets have authentication bytes included for integrity verification.
 
-A single fixed 64 byte payload can be transmitted during each window in a sequence, this is called a `knock`.  If the un-encrypted payload does not fill the full 64 byte frame the remaining bytes must contain additional data so as to not reveal the actual payload size.
+A single fixed 64 byte payload can be transmitted during each window in a sequence, this is called a `knock`.  If the payload does not fill the full 64 byte frame the remaining bytes must contain additional data so as to not reveal the actual payload size.
 
 > WIP - determine a standard filler data format that will add additional dynamically sized error correction, explore taking advantage of the fact that the inner and outer bitstreams are encrypted and bias-free (Gaussian distribution divergence?)
 
@@ -104,15 +104,15 @@ Each transmission window can go either direction between motes, the actual direc
 
 There is no mote addressing or other metadata included in the transmitted bytes, including there being no framing outside of the encrypted ciphertext in a knock.  The uniqueness of each knock's timing and PHY encoding is the only mote addressing mechanism.
 
-Every window sequence is a unique individual encrypted session between the two motes in one community using a randomly rotating nonce and a shared secret key derived directly from the medium, community name, and hashnames. All payloads are encrypted with the [ChaCha20 cipher](http://cr.yp.to/chacha.html) before transmission regardless of if they are already encrypted via telehash.
+Every window sequence is a unique individual encrypted session between the two motes in one community using a randomly rotating nonce and a shared secret key derived directly from the medium, community name, and hashnames. All payloads are additionally encrypted with the [ChaCha20 cipher](http://cr.yp.to/chacha.html) before transmission regardless of if they are already encrypted via telehash.
 
-Each mote should actively make use of multiple communities to another mote and regularly include more efficient mediums to optimize the overall energy usage.  Every mote advertises their current energy resource level as a `z-index` byte value as an additional mesh optimization strategy.
+Each mote should actively make use of multiple communities to another mote and regularly test more efficient mediums to optimize the overall energy usage.  Every mote advertises their current local energy availability level as a `z-index` (single byte value) to facilitate community-wide optimization strategies.
 
 ### Mesh
 
 There is two mechanisms used for enabling a larger scale mesh network with TMesh, `communities` (MAC layer) and `routers` (telehash/app layer).
 
-A `community` is defined by motes using a shared medium and the automatic sharing of other neighboring motes that it has active windows with in that medium.  Each neighbor mote hashname is listed along with time offset, last activity, z-index, and the signal strength.  A mote may be part of more than one community but does not share neighbor mote information outside of each one.
+A `community` is defined by motes using a shared medium and the automatic sharing of other neighboring motes that it has active windows with in that medium.  Each neighbor mote hashname is listed along with next nonce, last seen, z-index, and the signal strength.  A mote may be part of more than one community but does not share neighbor mote information outside of each one.
 
 The `leader` is always the neighbor with the highest z-index reachable directly, this is the mote advertising that it has the most resources available. The leader inherits the responsibility to monitor each neighbor's neighbors for other leaders and establish direct or bridged links with them.
 
@@ -210,7 +210,7 @@ Freq Table:
 | Japan  | 915 | 930  |          | ARIB T-108      | 0x03 |
 | China  | 779 | 787  | 10       | SRRC            | 0x04 |
 
-In the US region 0x01 to reach maximum transmit power each window may not transmit on a channel for more than 400ms, when that limit is reached a new channel must be derived from the knock (TBD) and hopped to.  See [App Note](https://www.semtech.com/images/promo/FCC_Part15_regulations_Semtech.pdf).
+In the US region 0x01 to reach maximum transmit power each window may not transmit on a channel for more than 400ms, when that limit is reached a new channel must be derived from the nonce (TBD) and hopped to.  See [App Note](https://www.semtech.com/images/promo/FCC_Part15_regulations_Semtech.pdf).
 
 Notes on ranges:
 * [SRRC](http://www.srrccn.org/srrc-approval-new2.htm)
@@ -226,7 +226,7 @@ Notes on ranges:
 
 ### Encrypted Knock Payload
 
-A unique 32 byte secret is derived for every pair of motes in any community. The 32 bytes are the binary digest output of multiple SHA-256 calculations of source data from the community and hashnames.  The first digest is generated from the medium (5 bytes), that output is combined with the community name (string) for a second digest, and then with the mote hashnames in binary ascending sorted order.
+A unique 32 byte secret is derived for every pair of motes in any community. The 32 bytes are the binary digest output of multiple SHA-256 calculations of source data from the community and hashnames.  The first digest is generated from the medium (5 bytes), that output is combined with a digest of the community name for a second digest. The third and fourth digests are generated by combining the previous one with each mote hashname in binary ascending sorted order.
 
 The 8-byte nonce is initially randomly generated and then rotated for every window using ChaCha20 identically to the knock payload.
 
@@ -239,7 +239,7 @@ Each knock transfers a fixed 64 byte ciphertext frame between two motes.  Once t
 The flag byte format is:
 
 * bit 0 is the forwarding request, 1 = forward the frame, 0 = process it
-* bit 1 is the payload format, 1 = full 63 bytes are the next chunk, 0 = the payload is the end of a complete packet and the following byte is the remainder length (from 0 to 62)
+* bit 1 is the payload format, 1 = full 63 bytes are the next chunk, 0 = the payload is the end of a complete packet and the following byte is the remainder length (from 1 to 62)
 * bit 2-7 is a position number (less than 64) that specifies the forwarding neighbor based on their list position in the most recent neighborhood map exchanged
 
 When receiving a forwarded frame the position number is 1 or greater, a position of 0 means the frame is direct and not forwarded.
@@ -248,13 +248,13 @@ When receiving a forwarded frame the position number is 1 or greater, a position
 
 When two motes are not in sync they both transmit and receive a `PING` knock.  This knock's frame bytes always begin with the current 8-byte nonce value that was used to generate the ciphertext of the remaining 56 bytes of the frame and determine the sender's timing of the knock within the current window.
 
-Once deciphered, the first 32 bytes are the sending mote's hashname and the remaining 24 bytes are filled in with random values.
+Once deciphered the first 8 bytes are the next nonce the sender will be listening for, followed by the 32 bytes of the sending mote's hashname.  All remaining bytes are filled in with random values.
 
 ### PING Synchronization
 
-The sender should only transmit a `PING` with a nonce that it knows the next window has the opposite parity of so that a recipient can immediately respond if that `PING` is detected.
+The sender should only transmit a `PING` that includes a next nonce with the opposite parity so that a recipient can immediately respond in that upcoming window sequence if that `PING` is detected.
 
-Once any mote has detected and validated any incoming `PING` from a mote it is attempting to synchronize with, it simply uses the incoming given nonce and transmits a `PING` with the next nonce in the next window. 
+Once any mote has detected and validated any incoming `PING` from a mote it is attempting to synchronize with, it simply uses the incoming nonce and waits for the next nonce to transmits a `PING` in the next window. 
 
 The original sender can then detect the response `PING` that has the correct matching nonce, validate the hashname, and become synchronized.
 
